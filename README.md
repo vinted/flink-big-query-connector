@@ -10,37 +10,37 @@ There are builder classes to simplify constructing a BigQuery sink. The code sni
 ```java
 var credentials = new JsonCredentialsProvider("key");
 
-        var clientProvider = new BigQueryProtoClientProvider(credentials,
-        WriterSettings
-            .newBuilder()
-            .build()
-        );
+var clientProvider = new BigQueryProtoClientProvider(credentials,
+WriterSettings
+    .newBuilder()
+    .build()
+);
 
-        var bigQuerySink = BigQueryStreamSink
-            .<String>newProto()
-            .withClientProvider(clientProvider)
-            .withDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
-            .withRowValueSerializer(new NoOpRowSerializer<>())
-            .build();
+var bigQuerySink = BigQueryStreamSink
+    .<String>newProto()
+    .withClientProvider(clientProvider)
+    .withDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
+    .withRowValueSerializer(new NoOpRowSerializer<>())
+    .build();
 ```
 
 The sink takes in a batch of records. Batching happens outside the sink by opening a window. Batched records need to implement the BigQueryRecord interface.
 
 ```java
-        var trigger = BatchTrigger.<Record, GlobalWindow>builder()
-                .withCount(100)
-                .withTimeout(Duration.ofSeconds(1))
-                .withSizeInMb(1)
-                .withResetTimerOnNewRecord(true)
-                .build();
+var trigger = BatchTrigger.<Record, GlobalWindow>builder()
+        .withCount(100)
+        .withTimeout(Duration.ofSeconds(1))
+        .withSizeInMb(1)
+        .withResetTimerOnNewRecord(true)
+        .build();
 
-        var processor = new BigQueryStreamProcessor().withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-        
-        source
-            .key(s -> s)
-            .window(GlobalWindows.create())
-            .trigger(trigger)
-            .process(processor)
+var processor = new BigQueryStreamProcessor().withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
+
+source
+    .key(s -> s)
+    .window(GlobalWindows.create())
+    .trigger(trigger)
+    .process(processor)
 ```
 
 
@@ -58,7 +58,7 @@ There are two types of credentials:
 
 * Loading from a file
 ```java
- new FileCredentialsProvider("/path/to/file")
+new FileCredentialsProvider("/path/to/file")
 ```
 * Passing as a JSON string
 ```java
@@ -71,25 +71,25 @@ BigQuery supports two types of data formats: json and proto. When creating a str
 
 * JSON
 ```java
-        var clientProvider = new BigQueryJsonClientProvider(credentials,
-            WriterSettings
-                .newBuilder()
-                .build()
-        );
+var clientProvider = new BigQueryJsonClientProvider(credentials,
+    WriterSettings
+        .newBuilder()
+        .build()
+);
 
-        var bigQuerySink = BigQueryStreamSink
-            .<String>newJson()
+var bigQuerySink = BigQueryStreamSink
+    .<String>newJson()
 ```
 * Proto
 ```java
-        var clientProvider = new BigQueryProtoClientProvider(credentials,
-            WriterSettings
-                .newBuilder()
-                .build()
-        );
+var clientProvider = new BigQueryProtoClientProvider(credentials,
+    WriterSettings
+        .newBuilder()
+        .build()
+);
 
-        var bigQuerySink = BigQueryStreamSink
-            .<String>newProto()
+var bigQuerySink = BigQueryStreamSink
+    .<String>newProto()
 ```
 
 # Exactly once
