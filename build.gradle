@@ -1,0 +1,80 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'maven-publish'
+    id 'java-library'
+    id 'me.qoomon.git-versioning' version '4.3.0'
+}
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven { url 'https://packages.confluent.io/maven/' }
+    maven { url 'https://nexus.vinted.net/repository/maven-proxy-oom/' }
+}
+
+group = "com.github.vinted"
+
+gitVersioning.apply {
+    tag {
+        pattern = '(?<tagVersion>\\d+\\.\\d+\\.\\d+$)'
+        versionFormat = '${tagVersion}'
+    }
+    branch {
+        pattern = '.+'
+        versionFormat = '${branch}-SNAPSHOT'
+    }
+    preferTags = false
+}
+
+ext {
+    flinkVersion = '1.17.0'
+    bigqueryVersion = '2.27.0'
+    bigqueryStorageVersion = '2.37.2'
+    json4sVersion = '4.0.3'
+}
+
+dependencies {
+    // Flink provided dependencies
+    compileOnly "org.apache.flink:flink-connector-base:$flinkVersion"
+    compileOnly "org.apache.flink:flink-streaming-java:$flinkVersion"
+    compileOnly "org.apache.flink:flink-core:$flinkVersion"
+
+    implementation "com.google.cloud:google-cloud-bigquery:$bigqueryVersion"
+    implementation "com.google.cloud:google-cloud-bigquerystorage:$bigqueryStorageVersion"
+
+    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine"
+    testImplementation 'org.mockito:mockito-junit-jupiter:4.11.0'
+    testImplementation "org.assertj:assertj-core:3.24.0"
+    testImplementation "org.apache.flink:flink-connector-base:$flinkVersion"
+    testImplementation "org.mockito:mockito-inline:4.7.0"
+    testImplementation "org.apache.flink:flink-test-utils:$flinkVersion"
+    testImplementation 'commons-io:commons-io:2.11.0'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+shadowJar {
+    classifier = null
+    relocate 'io.grpc', 'com.vinted.flink.bigquery.shaded.io.grpc'
+    relocate 'io.netty', 'com.vinted.flink.bigquery.shaded.io.netty'
+    mergeServiceFiles()
+}
+
+publishing {
+    publications {
+        java(MavenPublication) {
+            artifactId = project.name
+            artifact shadowJar
+        }
+    }
+}
+
