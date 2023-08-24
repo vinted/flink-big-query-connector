@@ -61,6 +61,7 @@ test {
 }
 
 shadowJar {
+    archiveClassifier.set('')
     relocate 'io.grpc', 'com.vinted.flink.bigquery.shaded.io.grpc'
     relocate 'io.netty', 'com.vinted.flink.bigquery.shaded.io.netty'
     mergeServiceFiles()
@@ -69,6 +70,7 @@ shadowJar {
 publishing {
     publications {
         java(MavenPublication) {
+            group = "com.github.vinted"
             artifactId = project.name
             artifact shadowJar
         }
