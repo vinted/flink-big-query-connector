@@ -31,8 +31,8 @@ gitVersioning.apply {
 
 ext {
     flinkVersion = '1.17.1'
-    bigqueryVersion = '2.27.0'
-    bigqueryStorageVersion = '2.37.2'
+    bigqueryVersion = '2.31.1'
+    bigqueryStorageVersion = '2.41.1'
     json4sVersion = '4.0.3'
 }
 
