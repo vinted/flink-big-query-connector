@@ -70,7 +70,6 @@ shadowJar {
 publishing {
     publications {
         java(MavenPublication) {
-            group = "com.github.vinted"
             artifactId = project.name
             artifact shadowJar
         }
