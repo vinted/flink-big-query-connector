@@ -30,7 +30,7 @@ gitVersioning.apply {
 }
 
 ext {
-    flinkVersion = '1.17.0'
+    flinkVersion = '1.17.1'
     bigqueryVersion = '2.27.0'
     bigqueryStorageVersion = '2.37.2'
     json4sVersion = '4.0.3'
