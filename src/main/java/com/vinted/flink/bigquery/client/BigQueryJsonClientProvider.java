@@ -13,6 +13,7 @@ import com.vinted.flink.bigquery.model.config.WriterSettings;
 import com.vinted.flink.bigquery.schema.SchemaTransformer;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 
 public class BigQueryJsonClientProvider implements ClientProvider<JsonStreamWriter> {
@@ -61,17 +62,18 @@ public class BigQueryJsonClientProvider implements ClientProvider<JsonStreamWrit
         return this.writerSettings;
     }
 
-    TableSchema getTableSchema(TableId table) {
-        var schema = BigQueryOptions
+    TableSchema getTableSchema(TableId tableId) {
+        var table = BigQueryOptions
                 .newBuilder()
-                .setProjectId(table.getProject())
+                .setProjectId(tableId.getProject())
                 .setCredentials(credentials.getCredentials())
                 .build()
                 .getService()
-                .getTable(table.getDataset(), table.getTable())
+                .getTable(tableId.getDataset(), tableId.getTable());
+        var schema = Optional.ofNullable(table)
+                .orElseThrow(() -> new IllegalArgumentException("Non existing table: " + tableId))
                 .getDefinition()
                 .getSchema();
-
         return SchemaTransformer.convertTableSchema(schema);
     }
 
