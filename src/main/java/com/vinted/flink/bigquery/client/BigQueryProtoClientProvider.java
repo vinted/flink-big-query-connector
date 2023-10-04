@@ -33,7 +33,6 @@ public class BigQueryProtoClientProvider implements ClientProvider<StreamWriter>
                 throw new RuntimeException(e);
             }
         }
-
         return bigQueryWriteClient;
     }
 

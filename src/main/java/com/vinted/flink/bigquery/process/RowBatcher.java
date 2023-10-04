@@ -7,15 +7,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class RowBatcher<A extends BigQueryRecord, K, W extends Window> extends ProcessWindowFunction<A, Rows<A>, K, W> {
-    private static final Logger logger = LoggerFactory.getLogger(RowBatcher.class);
-
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);

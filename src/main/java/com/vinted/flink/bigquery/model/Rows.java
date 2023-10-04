@@ -18,7 +18,7 @@ public class Rows<A> implements Serializable {
 
     public static <A> Rows<A> defaultStream(List<A> data, TableId table) {
         var fullPath = TableName.of(table.getProject(), table.getDataset(), table.getTable()).toString();
-        return new Rows<>(data, -1, String.format("%s/_default", fullPath), table);
+        return new Rows<>(data, -1, String.format("%s/streams/_default", fullPath), table);
     }
 
     public Rows() {

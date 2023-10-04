@@ -34,8 +34,8 @@ public class RowBatcherTest {
         assertThat(result)
                 .usingRecursiveComparison()
                 .isEqualTo(List.of(
-                        new Rows<>(List.of(new Record("key", "1"), new Record("key", "2")), -1, "projects/test-project/datasets/test-dataset/tables/test-table/_default", testTable),
-                        new Rows<>(List.of(new Record("key", "3"), new Record("key", "4")), -1, "projects/test-project/datasets/test-dataset/tables/test-table/_default", testTable)
+                        new Rows<>(List.of(new Record("key", "1"), new Record("key", "2")), -1, "projects/test-project/datasets/test-dataset/tables/test-table/streams/_default", testTable),
+                        new Rows<>(List.of(new Record("key", "3"), new Record("key", "4")), -1, "projects/test-project/datasets/test-dataset/tables/test-table/streams/_default", testTable)
                 ));
     }
 
