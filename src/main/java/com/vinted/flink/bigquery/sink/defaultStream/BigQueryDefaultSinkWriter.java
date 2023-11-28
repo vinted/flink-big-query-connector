@@ -109,6 +109,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
         @Override
         public void onFailure(Throwable t) {
             logger.info("Trace-id {} Received error {}", t.getMessage(), traceId);
+            this.parent.inflightRequestCount.arriveAndDeregister();
             var status = Status.fromThrowable(t);
             if (status.getCode() == Status.Code.INVALID_ARGUMENT && t.getMessage().contains("INVALID_ARGUMENT: MessageSize is too large.")) {
                 Optional.ofNullable(this.parent.metrics.get(rows.getStream())).ifPresent(BigQueryStreamMetrics::incSplitCount);
@@ -120,11 +121,9 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                     this.parent.writeWithRetry(traceId, rows.updateBatch(second, rows.getOffset() + first.size()), retryCount);
                 } catch (Throwable e) {
                     this.parent.appendAsyncException = new AppendException(traceId, rows, t);
-                    this.parent.inflightRequestCount.arriveAndDeregister();
                 }
             } else {
                 this.parent.appendAsyncException = new AppendException(traceId, rows, t);
-                this.parent.inflightRequestCount.arriveAndDeregister();
             }
         }
 
