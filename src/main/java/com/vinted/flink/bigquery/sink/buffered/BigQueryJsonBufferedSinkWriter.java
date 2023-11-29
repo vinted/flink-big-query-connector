@@ -1,6 +1,7 @@
 package com.vinted.flink.bigquery.sink.buffered;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.JsonStreamWriter;
 import com.google.protobuf.Descriptors;
@@ -26,8 +27,8 @@ public class BigQueryJsonBufferedSinkWriter<A> extends BigQueryBufferedSinkWrite
 
         try {
             return streamWriter(traceId, rows.getStream(), rows.getTable()).append(rowArray, rows.getOffset());
-        } catch (IOException | Descriptors.DescriptorValidationException e) {
-            throw new RuntimeException(e);
+        } catch (Throwable t) {
+            return ApiFutures.immediateFailedFuture(t);
         }
     }
 }
