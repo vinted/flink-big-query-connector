@@ -1,6 +1,7 @@
 package com.vinted.flink.bigquery.sink.defaultStream;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.JsonStreamWriter;
 import com.google.protobuf.Descriptors;
@@ -36,9 +37,9 @@ public class BigQueryDefaultJsonSinkWriter<A> extends BigQueryDefaultSinkWriter<
 
         try {
             return writer.append(rowArray);
-        } catch (IOException | Descriptors.DescriptorValidationException e) {
-            logger.error("Trace-id {}, StreamWriter failed to append {}", traceId, e.getMessage());
-            throw new RuntimeException(e);
+        } catch (Throwable t) {
+            logger.error("Trace-id {}, StreamWriter failed to append {}", traceId, t.getMessage());
+            return ApiFutures.immediateFailedFuture(t);
         }
     }
 }

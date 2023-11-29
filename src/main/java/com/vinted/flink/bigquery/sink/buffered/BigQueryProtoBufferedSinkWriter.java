@@ -1,6 +1,7 @@
 package com.vinted.flink.bigquery.sink.buffered;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
@@ -39,6 +40,11 @@ public class BigQueryProtoBufferedSinkWriter<A> extends BigQueryBufferedSinkWrit
 
         logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
 
-        return writer.append(prows, rows.getOffset());
+        try {
+            return writer.append(prows, rows.getOffset());
+        } catch (Throwable t) {
+            logger.error("Trace-id {}, StreamWriter failed to append {}", traceId, t.getMessage());
+            return ApiFutures.immediateFailedFuture(t);
+        }
     }
 }
