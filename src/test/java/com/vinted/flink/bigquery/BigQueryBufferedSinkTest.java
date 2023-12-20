@@ -56,8 +56,24 @@ public class BigQueryBufferedSinkTest {
     }
 
     @Test
-    public void shouldNotRetryOnException(@FlinkParam PipelineRunner runner, @FlinkParam MockJsonClientProvider mockClientProvider) throws Exception {
-        mockClientProvider.givenFailingAppendWithStatus(Status.INTERNAL);
+    public void shouldRetryOnRecoverableException(@FlinkParam PipelineRunner runner, @FlinkParam MockJsonClientProvider mockClientProvider) throws Exception {
+        mockClientProvider.givenFailingAppendWithStatus(Status.FAILED_PRECONDITION);
+
+        assertThatThrownBy(() -> {
+            runner
+                    .withRetryCount(0)
+                    .runWithCustomSink(withBigQuerySink(mockClientProvider, pipeline(List.of(
+                            givenRows(1)
+                    ))));
+        }).isInstanceOf(JobExecutionException.class);
+
+
+        verify(mockClientProvider.getMockJsonWriter(), times(5)).append(any());
+    }
+
+    @Test
+    public void shouldNotRetryOnNonRecoverableException(@FlinkParam PipelineRunner runner, @FlinkParam MockJsonClientProvider mockClientProvider) throws Exception {
+        mockClientProvider.givenFailingAppendWithStatus(Status.PERMISSION_DENIED);
 
         assertThatThrownBy(() -> {
             runner

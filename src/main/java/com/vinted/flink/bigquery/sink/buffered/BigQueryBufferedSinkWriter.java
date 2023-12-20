@@ -29,6 +29,7 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
         implements TwoPhaseCommittingSink.PrecommittingSinkWriter<Rows<A>, BigQueryCommittable> {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryBufferedSinkWriter.class);
     private Map<String, Long> streamOffsets = new ConcurrentHashMap<>();
+
     public BigQueryBufferedSinkWriter(
             Sink.InitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
@@ -200,7 +201,7 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
         @Override
         public void onFailure(Throwable t) {
             logger.info("Trace-id {} Received error {}", t.getMessage(), traceId);
-            future.completeExceptionally(new AppendException(traceId, rows, t));
+            future.completeExceptionally(new AppendException(traceId, rows, retryCount, t));
         }
 
         @Override

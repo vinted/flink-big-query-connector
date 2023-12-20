@@ -43,7 +43,6 @@ public class BigQueryDefaultProtoSinkWriter<A> extends BigQueryDefaultSinkWriter
         if (writer.isClosed() || writer.isUserClosed()) {
             logger.warn("Trace-id {}, StreamWrite is closed. Recreating stream for {}", traceId, rows.getStream());
         }
-
         logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
         try {
             return writer.append(prows);
