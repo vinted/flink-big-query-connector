@@ -20,7 +20,6 @@ public class RowBatcher<A extends BigQueryRecord, K, W extends Window> extends P
     @Override
     public void process(K k, ProcessWindowFunction<A, Rows<A>, K, W>.Context context, Iterable<A> batch, Collector<Rows<A>> out) throws Exception {
         var table = getTable(batch.iterator().next());
-
         var data = StreamSupport.stream(batch.spliterator(), false).collect(Collectors.toList());
         var result = Rows.defaultStream(data, table);
         out.collect(result);

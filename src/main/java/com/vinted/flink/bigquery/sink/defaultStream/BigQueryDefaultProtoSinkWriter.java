@@ -6,6 +6,9 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.google.protobuf.ByteString;
+import com.vinted.flink.bigquery.sink.AppendException;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import org.apache.flink.api.connector.sink2.Sink;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import com.vinted.flink.bigquery.model.Rows;
@@ -43,7 +46,6 @@ public class BigQueryDefaultProtoSinkWriter<A> extends BigQueryDefaultSinkWriter
         if (writer.isClosed() || writer.isUserClosed()) {
             logger.warn("Trace-id {}, StreamWrite is closed. Recreating stream for {}", traceId, rows.getStream());
         }
-
         logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
         try {
             return writer.append(prows);

@@ -9,9 +9,12 @@ public class AppendException extends RuntimeException {
 
     private final Throwable error;
 
-    public AppendException(String traceId, Rows<?> rows, Throwable error) {
+    private final int retryCount;
+
+    public AppendException(String traceId, Rows<?> rows, int retryCount, Throwable error) {
         this.traceId = traceId;
         this.rows = rows;
+        this.retryCount = retryCount;
         this.error = error;
     }
 
@@ -21,6 +24,10 @@ public class AppendException extends RuntimeException {
 
     public <A> Rows<A> getRows() {
         return (Rows<A>) rows;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
     }
 
     public Throwable getError() {
