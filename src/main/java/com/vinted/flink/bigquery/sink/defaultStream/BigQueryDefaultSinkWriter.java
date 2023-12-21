@@ -105,6 +105,44 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             this.parent.inflightRequestCount.arriveAndDeregister();
         }
 
+
+        @Override
+        public void onFailure(Throwable t) {
+            logger.error("Trace-id {} Received error {}", t.getMessage(), traceId);
+            var status = Status.fromThrowable(t);
+            switch (status.getCode()) {
+                case INTERNAL:
+                case ABORTED:
+                case CANCELLED:
+                case FAILED_PRECONDITION:
+                case DEADLINE_EXCEEDED:
+                case UNAVAILABLE:
+                    doPauseBeforeRetry();
+                    retryWrite(t, retryCount - 1);
+                    break;
+                case INVALID_ARGUMENT:
+                    if (t.getMessage().contains("INVALID_ARGUMENT: MessageSize is too large.")) {
+                        Optional.ofNullable(this.parent.metrics.get(rows.getStream())).ifPresent(BigQueryStreamMetrics::incSplitCount);
+                        logger.warn("Trace-id {} MessageSize is too large. Splitting batch", traceId);
+                        var data = rows.getData();
+                        var first = data.subList(0, data.size() / 2);
+                        var second = data.subList(data.size() / 2, data.size());
+                        try {
+                            this.parent.writeWithRetry(traceId, rows.updateBatch(first, rows.getOffset()), retryCount - 1);
+                            this.parent.writeWithRetry(traceId, rows.updateBatch(second, rows.getOffset() + first.size()), retryCount - 1);
+                        } catch (Throwable e) {
+                            this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
+                        }
+                    } else {
+                        this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
+                    }
+                    break;
+                default:
+                    this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
+            }
+            this.parent.inflightRequestCount.arriveAndDeregister();
+        }
+
         private void retryWrite(Throwable t, int newRetryCount) {
             var status = Status.fromThrowable(t);
             try {
@@ -126,42 +164,6 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-        }
-
-        @Override
-        public void onFailure(Throwable t) {
-            logger.error("Trace-id {} Received error {}", t.getMessage(), traceId);
-            var status = Status.fromThrowable(t);
-            switch (status.getCode()) {
-                case INTERNAL:
-                case ABORTED:
-                case CANCELLED:
-                case FAILED_PRECONDITION:
-                case DEADLINE_EXCEEDED:
-                case UNAVAILABLE:
-                    doPauseBeforeRetry();
-                    retryWrite(t, retryCount - 1);
-                    break;
-                case INVALID_ARGUMENT:
-                    if (t.getMessage().contains("INVALID_ARGUMENT: MessageSize is too large.")) {
-                        Optional.ofNullable(this.parent.metrics.get(rows.getStream())).ifPresent(BigQueryStreamMetrics::incSplitCount);
-                        logger.warn("Trace-id {} MessageSize is too large. Splitting batch", traceId);
-                        var first = rows.getData().subList(0, rows.getData().size() / 2);
-                        var second = rows.getData().subList(rows.getData().size() / 2, rows.getData().size());
-                        try {
-                            this.parent.writeWithRetry(traceId, rows.updateBatch(first, rows.getOffset()), retryCount - 1);
-                            this.parent.writeWithRetry(traceId, rows.updateBatch(second, rows.getOffset() + first.size()), retryCount - 1);
-                        } catch (Throwable e) {
-                            this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-                        }
-                    } else {
-                        this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-                    }
-                    break;
-                default:
-                    this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-            }
-            this.parent.inflightRequestCount.arriveAndDeregister();
         }
     }
 }
