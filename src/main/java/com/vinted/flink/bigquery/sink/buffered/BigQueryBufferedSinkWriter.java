@@ -61,7 +61,7 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
             var errorTraceId = exception.getTraceId();
             var status = Status.fromThrowable(error);
             Function<String, String> createLogMessage = (title) ->
-                    this.createLogMessage(title, errorTraceId, status, error, errorRows);
+                    this.createLogMessage(title, errorTraceId, status, error, errorRows, retryCount);
             switch (status.getCode()) {
                 case INTERNAL:
                 case CANCELLED:

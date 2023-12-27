@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.Phaser;
+import java.util.function.Function;
 
 public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable>
         extends BigQuerySinkWriter<A, StreamT> {
@@ -36,9 +37,10 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
 
     private void checkAsyncException() {
         // reset this exception since we could close the writer later on
-        RuntimeException e = appendAsyncException;
+        AppendException e = appendAsyncException;
         if (e != null) {
             appendAsyncException = null;
+            logger.error("Throwing non recoverable exception", e);
             throw e;
         }
     }
@@ -55,8 +57,17 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             var callback = new AppendCallBack<>(this, traceId, rows, retryCount);
             ApiFutures.addCallback(response, callback, appendExecutor);
             inflightRequestCount.register();
+        } catch (AppendException exception) {
+            var error = exception.getError();
+            var errorRows = exception.<A>getRows();
+            var errorTraceId = exception.getTraceId();
+            var status = Status.fromThrowable(error);
+            Function<String, String> createLogMessage = (title) ->
+                    this.createLogMessage(title, errorTraceId, status, error, errorRows, retryCount);
+            logger.error(createLogMessage.apply("Non recoverable BigQuery stream AppendException for:"), error);
+            throw error;
         } catch (Throwable t) {
-            logger.error("Non recoverable BigQuery stream error for:", t);
+            logger.error("Trace-id: {} Non recoverable BigQuery stream error for: {}. Retry count: {}", traceId, t.getMessage(), retryCount);
             throw t;
         }
     }
@@ -108,7 +119,6 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
 
         @Override
         public void onFailure(Throwable t) {
-            logger.error("Trace-id {} Received error {}", t.getMessage(), traceId);
             var status = Status.fromThrowable(t);
             switch (status.getCode()) {
                 case INTERNAL:
@@ -134,10 +144,12 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                             this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
                         }
                     } else {
+                        logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
                         this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
                     }
                     break;
                 default:
+                    logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
                     this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
             }
             this.parent.inflightRequestCount.arriveAndDeregister();
@@ -147,7 +159,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             var status = Status.fromThrowable(t);
             try {
                 if (newRetryCount > 0) {
-                    logger.warn("Trace-id {} Recoverable error {}. Retrying...", traceId, status.getCode(), t);
+                    logger.warn("Trace-id {} Recoverable error {}. Retrying {} ...", traceId, status.getCode(), retryCount);
                     this.parent.writeWithRetry(traceId, rows, newRetryCount);
                 } else {
                     logger.error("Trace-id {} Recoverable error {}. No more retries left", traceId, status.getCode(), t);
