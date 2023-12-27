@@ -100,8 +100,8 @@ public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> imple
 
     protected abstract void writeWithRetry(String traceId, Rows<A> rows, int retryCount) throws Throwable;
 
-    protected String createLogMessage(String title, String errorTraceId, Status status, Throwable error, Rows<A> errorRows) {
-        return String.format("Trace-id: %s %s \nstatus: %s\nerror: %s\nstream: %s\ntable: %s\nactual offset: %s\nsize: %s",
+    protected String createLogMessage(String title, String errorTraceId, Status status, Throwable error, Rows<A> errorRows, int retryCount) {
+        return String.format("Trace-id: %s %s \nstatus: %s\nerror: %s\nstream: %s\ntable: %s\nactual offset: %s\nsize: %s\n retryCount:%s",
                 errorTraceId,
                 title,
                 status.getCode(),
@@ -109,7 +109,8 @@ public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> imple
                 errorRows.getStream(),
                 errorRows.getTable(),
                 errorRows.getOffset(),
-                errorRows.getData().size()
+                errorRows.getData().size(),
+                retryCount
         );
     }
 
