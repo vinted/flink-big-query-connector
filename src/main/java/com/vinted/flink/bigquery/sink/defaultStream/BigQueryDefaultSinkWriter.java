@@ -32,6 +32,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             RowValueSerializer<A> rowSerializer,
             ClientProvider<StreamT> clientProvider,
             ExecutorProvider executorProvider) {
+
         super(sinkInitContext, rowSerializer, clientProvider, executorProvider);
     }
 
@@ -88,9 +89,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
 
     @Override
     public void flush(boolean endOfInput) {
-        if (endOfInput) {
-            inflightRequestCount.arriveAndAwaitAdvance();
-        }
+        inflightRequestCount.arriveAndAwaitAdvance();
         checkAsyncException();
     }
 
