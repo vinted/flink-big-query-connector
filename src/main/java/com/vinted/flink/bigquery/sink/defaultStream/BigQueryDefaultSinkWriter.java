@@ -12,6 +12,8 @@ import com.vinted.flink.bigquery.sink.BigQuerySinkWriter;
 import com.vinted.flink.bigquery.sink.ExecutorProvider;
 import io.grpc.Status;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +26,6 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
     private static final Logger logger = LoggerFactory.getLogger(BigQueryDefaultSinkWriter.class);
 
     private final Phaser inflightRequestCount = new Phaser(1);
-
     private volatile AppendException appendAsyncException = null;
 
     public BigQueryDefaultSinkWriter(
@@ -32,8 +33,15 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             RowValueSerializer<A> rowSerializer,
             ClientProvider<StreamT> clientProvider,
             ExecutorProvider executorProvider) {
-
         super(sinkInitContext, rowSerializer, clientProvider, executorProvider);
+
+        var metricGroup =  this.sinkInitContext.metricGroup();
+        var group = metricGroup
+                .addGroup("BigQuery")
+                .addGroup("DefaultSinkWriter")
+                .addGroup("inflight_requests");
+
+        group.gauge("count", this.inflightRequestCount::getRegisteredParties);
     }
 
     private void checkAsyncException() {
@@ -125,10 +133,14 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                 case CANCELLED:
                 case FAILED_PRECONDITION:
                 case DEADLINE_EXCEEDED:
-                case UNAVAILABLE:
                     doPauseBeforeRetry();
                     retryWrite(t, retryCount - 1);
                     break;
+                case UNAVAILABLE: {
+                    this.parent.recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+                    retryWrite(t, retryCount - 1);
+                    break;
+                }
                 case INVALID_ARGUMENT:
                     if (t.getMessage().contains("INVALID_ARGUMENT: MessageSize is too large.")) {
                         Optional.ofNullable(this.parent.metrics.get(rows.getStream())).ifPresent(BigQueryStreamMetrics::incSplitCount);
