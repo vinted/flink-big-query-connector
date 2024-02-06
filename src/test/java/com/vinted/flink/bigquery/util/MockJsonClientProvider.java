@@ -13,11 +13,20 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MockJsonClientProvider implements ClientProvider<JsonStreamWriter>, Serializable {
     private static BigQueryWriteClient mockClient = Mockito.mock(BigQueryWriteClient.class);
     private static JsonStreamWriter writer = Mockito.mock(JsonStreamWriter.class);
 
+    private static AtomicInteger numOfCreatedWriters = new AtomicInteger(0);
+
+    private int retryCount = 5;
+
+
+    public void givenRetryCount(int count) {
+        this.retryCount = count;
+    }
     public void givenStreamDoesNotExist(String streamName) {
         Mockito.doThrow(new RuntimeException(new StatusException(Status.NOT_FOUND)))
                 .when(MockJsonClientProvider.mockClient).getWriteStream(streamName);
@@ -97,9 +106,14 @@ public class MockJsonClientProvider implements ClientProvider<JsonStreamWriter>,
                 .thenReturn(createAppendRowsResponse());
     }
 
+    public int getNumOfCreatedWriter() {
+        return numOfCreatedWriters.get();
+    }
+
     public static void reset() {
         Mockito.reset(MockJsonClientProvider.mockClient);
         Mockito.reset(MockJsonClientProvider.writer);
+        MockJsonClientProvider.numOfCreatedWriters.set(0);
     }
 
     private static Exceptions.StreamFinalizedException createFinalizedStreamException() {
@@ -147,12 +161,13 @@ public class MockJsonClientProvider implements ClientProvider<JsonStreamWriter>,
 
     @Override
     public JsonStreamWriter getWriter(String streamName, TableId table) {
+        numOfCreatedWriters.incrementAndGet();
         return MockJsonClientProvider.writer;
     }
 
 
     @Override
     public WriterSettings writeSettings() {
-        return WriterSettings.newBuilder().build();
+        return WriterSettings.newBuilder().withRetryCount(retryCount).build();
     }
 }
