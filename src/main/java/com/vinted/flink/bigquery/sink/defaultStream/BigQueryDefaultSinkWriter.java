@@ -12,14 +12,11 @@ import com.vinted.flink.bigquery.sink.BigQuerySinkWriter;
 import com.vinted.flink.bigquery.sink.ExecutorProvider;
 import io.grpc.Status;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.Phaser;
-import java.util.function.Function;
 
 public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable>
         extends BigQuerySinkWriter<A, StreamT> {
