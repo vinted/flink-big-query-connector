@@ -99,8 +99,10 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
 
     @Override
     public void flush(boolean endOfInput) {
+        logger.info("Flushing BigQuery writer {} data. Inflight request count {}", this.sinkInitContext.getSubtaskId(), inflightRequestCount.getRegisteredParties());
         checkAsyncException();
         inflightRequestCount.arriveAndAwaitAdvance();
+        logger.info("BigQuery writer {} data flushed. Inflight request count {}", this.sinkInitContext.getSubtaskId(), inflightRequestCount.getRegisteredParties());
     }
 
     static class AppendCallBack<A> implements ApiFutureCallback<AppendRowsResponse> {
