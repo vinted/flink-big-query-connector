@@ -97,8 +97,8 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
 
     @Override
     public void flush(boolean endOfInput) {
-        inflightRequestCount.arriveAndAwaitAdvance();
         checkAsyncException();
+        inflightRequestCount.arriveAndAwaitAdvance();
     }
 
     static class AppendCallBack<A> implements ApiFutureCallback<AppendRowsResponse> {
