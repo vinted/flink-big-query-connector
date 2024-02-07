@@ -28,11 +28,6 @@ public class BigQueryDefaultJsonSinkWriter<A> extends BigQueryDefaultSinkWriter<
         var rowArray = new JSONArray();
         rows.getData().forEach(row -> rowArray.put(new JSONObject(new String(rowSerializer.serialize(row)))));
         var writer = streamWriter(traceId, rows.getStream(), rows.getTable());
-
-        if (writer.isClosed() || writer.isUserClosed()) {
-            logger.warn("Trace-id {}, StreamWrite is closed. Recreating stream for {}", traceId, rows.getStream());
-        }
-
         logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
 
         try {

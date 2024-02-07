@@ -17,14 +17,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.Phaser;
-import java.util.function.Function;
 
 public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable>
         extends BigQuerySinkWriter<A, StreamT> {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryDefaultSinkWriter.class);
 
     private final Phaser inflightRequestCount = new Phaser(1);
-
     private volatile AppendException appendAsyncException = null;
 
     public BigQueryDefaultSinkWriter(
@@ -32,8 +30,15 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             RowValueSerializer<A> rowSerializer,
             ClientProvider<StreamT> clientProvider,
             ExecutorProvider executorProvider) {
-
         super(sinkInitContext, rowSerializer, clientProvider, executorProvider);
+
+        var metricGroup =  this.sinkInitContext.metricGroup();
+        var group = metricGroup
+                .addGroup("BigQuery")
+                .addGroup("DefaultSinkWriter")
+                .addGroup("inflight_requests");
+
+        group.gauge("count", this.inflightRequestCount::getRegisteredParties);
     }
 
     private void checkAsyncException() {
@@ -41,7 +46,11 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
         AppendException e = appendAsyncException;
         if (e != null) {
             appendAsyncException = null;
-            logger.error("Throwing non recoverable exception", e);
+            var error = e.getError();
+            var errorRows = e.<A>getRows();
+            var errorTraceId = e.getTraceId();
+            var status = Status.fromThrowable(error);
+            logger.error(this.createLogMessage("Non recoverable BigQuery stream AppendException for:",  errorTraceId, status, error, errorRows, 0), error);
             throw e;
         }
     }
@@ -63,9 +72,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             var errorRows = exception.<A>getRows();
             var errorTraceId = exception.getTraceId();
             var status = Status.fromThrowable(error);
-            Function<String, String> createLogMessage = (title) ->
-                    this.createLogMessage(title, errorTraceId, status, error, errorRows, retryCount);
-            logger.error(createLogMessage.apply("Non recoverable BigQuery stream AppendException for:"), error);
+            logger.error(this.createLogMessage("Non recoverable BigQuery stream AppendException for:",  errorTraceId, status, error, errorRows, retryCount), error);
             throw error;
         } catch (Throwable t) {
             logger.error("Trace-id: {} Non recoverable BigQuery stream error for: {}. Retry count: {}", traceId, t.getMessage(), retryCount);
@@ -89,8 +96,10 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
 
     @Override
     public void flush(boolean endOfInput) {
-        inflightRequestCount.arriveAndAwaitAdvance();
+        logger.info("Flushing BigQuery writer {} data. Inflight request count {}", this.sinkInitContext.getSubtaskId(), inflightRequestCount.getRegisteredParties());
         checkAsyncException();
+        inflightRequestCount.arriveAndAwaitAdvance();
+        logger.info("BigQuery writer {} data flushed. Inflight request count {}", this.sinkInitContext.getSubtaskId(), inflightRequestCount.getRegisteredParties());
     }
 
     static class AppendCallBack<A> implements ApiFutureCallback<AppendRowsResponse> {
@@ -125,10 +134,14 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                 case CANCELLED:
                 case FAILED_PRECONDITION:
                 case DEADLINE_EXCEEDED:
-                case UNAVAILABLE:
                     doPauseBeforeRetry();
                     retryWrite(t, retryCount - 1);
                     break;
+                case UNAVAILABLE: {
+                    this.parent.recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+                    retryWrite(t, retryCount - 1);
+                    break;
+                }
                 case INVALID_ARGUMENT:
                     if (t.getMessage().contains("INVALID_ARGUMENT: MessageSize is too large.")) {
                         Optional.ofNullable(this.parent.metrics.get(rows.getStream())).ifPresent(BigQueryStreamMetrics::incSplitCount);

@@ -18,6 +18,7 @@ import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -73,6 +74,27 @@ public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> imple
             // Stream name can't contain index
             return this.clientProvider.getWriter(streamName, table);
         });
+    }
+
+    protected final void recreateAllStreamWriters(String traceId, String streamName, TableId table) {
+        logger.info("Trace-id {} Closing all writers for {}", traceId, streamName);
+        try {
+            flush(true);
+            streamMap.replaceAll((key, writer) -> {
+                var newWriter = writer;
+                if (key.startsWith(streamName)) {
+                    try {
+                        writer.close();
+                    } catch (Exception e) {
+                        logger.trace("Trace-id {} Could not close writer for {}", traceId, streamName);
+                    }
+                    newWriter = this.clientProvider.getWriter(streamName, table);
+                }
+                return newWriter;
+            });
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
