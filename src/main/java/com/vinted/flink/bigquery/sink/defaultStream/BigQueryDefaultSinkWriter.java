@@ -130,13 +130,13 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             var status = Status.fromThrowable(t);
             switch (status.getCode()) {
                 case INTERNAL:
-                case ABORTED:
                 case CANCELLED:
                 case FAILED_PRECONDITION:
                 case DEADLINE_EXCEEDED:
                     doPauseBeforeRetry();
                     retryWrite(t, retryCount - 1);
                     break;
+                case ABORTED:
                 case UNAVAILABLE: {
                     this.parent.recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
                     retryWrite(t, retryCount - 1);
