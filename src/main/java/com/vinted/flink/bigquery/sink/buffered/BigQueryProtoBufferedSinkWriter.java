@@ -34,6 +34,12 @@ public class BigQueryProtoBufferedSinkWriter<A> extends BigQueryBufferedSinkWrit
         Optional.ofNullable(metrics.get(rows.getStream())).ifPresent(s -> s.updateSize(size));
         var writer = streamWriter(traceId, rows.getStream(), rows.getTable());
 
+        if (writer.isClosed() || writer.isUserClosed()) {
+            logger.warn("Trace-id {}, StreamWrite is closed. Recreating stream for {}", traceId, rows.getStream());
+            recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+            writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+        }
+
         logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
 
         try {

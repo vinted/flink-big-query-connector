@@ -65,7 +65,6 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
             switch (status.getCode()) {
                 case INTERNAL:
                 case CANCELLED:
-                case ABORTED: {
                     logger.warn(createLogMessage.apply("Recoverable error. Retrying.., "), error);
                     try {
                         Thread.sleep(clientProvider.writeSettings().getRetryPause().toMillis());
@@ -73,6 +72,14 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
                         throw new RuntimeException(e);
                     }
 
+                    if (retryCount > 0) {
+                        writeWithRetry(errorTraceId, errorRows, retryCount - 1);
+                    } else {
+                        throw error;
+                    }
+                    break;
+                case UNAVAILABLE:
+                case ABORTED: {
                     if (retryCount > 0) {
                         writeWithRetry(errorTraceId, errorRows, retryCount - 1);
                     } else {

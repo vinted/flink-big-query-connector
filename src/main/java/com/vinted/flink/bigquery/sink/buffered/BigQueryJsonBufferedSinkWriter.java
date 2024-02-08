@@ -24,9 +24,15 @@ public class BigQueryJsonBufferedSinkWriter<A> extends BigQueryBufferedSinkWrite
     protected ApiFuture<AppendRowsResponse> append(String traceId, Rows<A> rows) {
         var rowArray = new JSONArray();
         rows.getData().forEach(row -> rowArray.put(new JSONObject(new String(rowSerializer.serialize(row)))));
+        var writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+
+        if (writer.isClosed() || writer.isUserClosed()) {
+            recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+            writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+        }
 
         try {
-            return streamWriter(traceId, rows.getStream(), rows.getTable()).append(rowArray, rows.getOffset());
+            return writer.append(rowArray, rows.getOffset());
         } catch (Throwable t) {
             return ApiFutures.immediateFailedFuture(t);
         }
