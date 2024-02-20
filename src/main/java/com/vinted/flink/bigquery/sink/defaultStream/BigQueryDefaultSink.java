@@ -13,14 +13,14 @@ import com.vinted.flink.bigquery.sink.ExecutorProvider;
 
 import java.io.IOException;
 
-public class BigQueryDefaultSink<A, StreamT> implements Sink<Rows<A>> {
+public class BigQueryDefaultSink<A> implements Sink<Rows<A>> {
     private final RowValueSerializer<A> rowValueSerializer;
-    private final ClientProvider<StreamT> clientProvider;
+    private final ClientProvider<A> clientProvider;
     private final ExecutorProvider executorProvider;
 
     public BigQueryDefaultSink(
             RowValueSerializer<A> rowValueSerializer,
-            ClientProvider<StreamT> clientProvider,
+            ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {
         this.rowValueSerializer = rowValueSerializer;
         this.clientProvider = clientProvider;
@@ -29,13 +29,7 @@ public class BigQueryDefaultSink<A, StreamT> implements Sink<Rows<A>> {
 
     @Override
     public SinkWriter<Rows<A>> createWriter(InitContext context) throws IOException {
-        if (rowValueSerializer instanceof JsonRowValueSerializer) {
-            return new BigQueryDefaultJsonSinkWriter<A>(context, rowValueSerializer, (ClientProvider<JsonStreamWriter>) clientProvider, executorProvider);
-        } else if (rowValueSerializer instanceof ProtoValueSerializer) {
-            return new BigQueryDefaultProtoSinkWriter<A>(context, rowValueSerializer, (ClientProvider<StreamWriter>) clientProvider, executorProvider);
-        } else {
-            throw new RuntimeException("Not supported serializer");
-        }
+        return new BigQueryDefaultSinkWriter<A>(context, rowValueSerializer, clientProvider, executorProvider);
     }
 
 }

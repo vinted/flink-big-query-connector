@@ -13,9 +13,9 @@ import java.util.UUID;
 
 public class BigQuerySinkCommitter implements Committer<BigQueryCommittable> {
     private static final Logger logger = LoggerFactory.getLogger(BigQuerySinkCommitter.class);
-    private ClientProvider clientProvider;
+    private ClientProvider<?> clientProvider;
 
-    public BigQuerySinkCommitter(ClientProvider clientProvider) {
+    public BigQuerySinkCommitter(ClientProvider<?> clientProvider) {
         this.clientProvider = clientProvider;
     }
 

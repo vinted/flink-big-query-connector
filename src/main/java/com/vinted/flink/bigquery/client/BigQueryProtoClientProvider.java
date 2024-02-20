@@ -8,13 +8,14 @@ import com.google.protobuf.Descriptors;
 import com.vinted.flink.bigquery.model.config.Credentials;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
 import com.vinted.flink.bigquery.schema.SchemaTransformer;
+import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
 
-public class BigQueryProtoClientProvider implements ClientProvider<StreamWriter> {
-    private Credentials credentials;
-    private WriterSettings writerSettings;
+public class BigQueryProtoClientProvider<A> implements ClientProvider<A> {
+    private final Credentials credentials;
+    private final WriterSettings writerSettings;
 
     private transient BigQueryWriteClient bigQueryWriteClient;
 
@@ -37,7 +38,7 @@ public class BigQueryProtoClientProvider implements ClientProvider<StreamWriter>
     }
 
     @Override
-    public StreamWriter getWriter(String streamName, TableId table) {
+    public BigQueryStreamWriter<A> getWriter(String streamName, TableId table, RowValueSerializer<A> serializer) {
         try {
             var descriptor = BQTableSchemaToProtoDescriptor.convertBQTableSchemaToProtoDescriptor(getTableSchema(table));
             var protoSchema = ProtoSchemaConverter.convert(descriptor);
@@ -53,7 +54,8 @@ public class BigQueryProtoClientProvider implements ClientProvider<StreamWriter>
                     .setExecutorProvider(executorProvider)
                     .setLocation(table.getProject())
                     .setWriterSchema(protoSchema);
-            return streamWriterBuilder.build();
+
+            return new ProtoStreamWriter<>(serializer, streamWriterBuilder.build());
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             throw new RuntimeException(e);
         }

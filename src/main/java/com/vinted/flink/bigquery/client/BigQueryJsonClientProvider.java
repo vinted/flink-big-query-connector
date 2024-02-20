@@ -11,12 +11,13 @@ import com.google.protobuf.Descriptors;
 import com.vinted.flink.bigquery.model.config.Credentials;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
 import com.vinted.flink.bigquery.schema.SchemaTransformer;
+import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 
-public class BigQueryJsonClientProvider implements ClientProvider<JsonStreamWriter> {
+public class BigQueryJsonClientProvider<A> implements ClientProvider<A> {
     private Credentials credentials;
     private WriterSettings writerSettings;
 
@@ -42,16 +43,18 @@ public class BigQueryJsonClientProvider implements ClientProvider<JsonStreamWrit
     }
 
     @Override
-    public JsonStreamWriter getWriter(String streamName, TableId table) {
+    public BigQueryStreamWriter<A> getWriter(String streamName, TableId table, RowValueSerializer<A> serializer) {
         try {
             var executorProvider = this.writerSettings.getWriterThreads() > 1 ?
                     FixedExecutorProvider.create(Executors.newScheduledThreadPool(writerSettings.getWriterThreads())) :
                     BigQueryWriteSettings.defaultExecutorProviderBuilder().build();
-            return JsonStreamWriter
+            var writer = JsonStreamWriter
                     .newBuilder(streamName, getTableSchema(table), this.getClient())
                     .setEnableConnectionPool(this.writerSettings.getEnableConnectionPool())
                     .setExecutorProvider(executorProvider)
                     .build();
+
+            return new com.vinted.flink.bigquery.client.JsonStreamWriter<>(serializer, writer);
         } catch (Descriptors.DescriptorValidationException | IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

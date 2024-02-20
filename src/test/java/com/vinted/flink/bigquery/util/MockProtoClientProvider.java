@@ -4,8 +4,11 @@ import com.google.api.core.SettableApiFuture;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.*;
 import com.google.protobuf.Descriptors;
+import com.vinted.flink.bigquery.client.BigQueryStreamWriter;
 import com.vinted.flink.bigquery.client.ClientProvider;
+import com.vinted.flink.bigquery.client.ProtoStreamWriter;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
+import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import org.mockito.Mockito;
@@ -13,6 +16,7 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class MockProtoClientProvider implements ClientProvider<StreamWriter>, Serializable {
     private static BigQueryWriteClient  mockClient = Mockito.mock(BigQueryWriteClient.class);
@@ -149,10 +153,10 @@ public class MockProtoClientProvider implements ClientProvider<StreamWriter>, Se
     }
 
     @Override
-    public StreamWriter getWriter(String streamName, TableId table) {
-        return MockProtoClientProvider.protoWriter;
+    public BigQueryStreamWriter<StreamWriter> getWriter(String streamName, TableId table, RowValueSerializer<StreamWriter> serializer) {
+        Mockito.when(MockProtoClientProvider.protoWriter.getWriterId()).thenReturn(UUID.randomUUID().toString());
+        return new ProtoStreamWriter<>(serializer, MockProtoClientProvider.protoWriter);
     }
-
 
     @Override
     public WriterSettings writeSettings() {

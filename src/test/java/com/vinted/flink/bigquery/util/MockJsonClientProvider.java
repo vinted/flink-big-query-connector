@@ -4,8 +4,11 @@ import com.google.api.core.SettableApiFuture;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.*;
 import com.google.protobuf.Descriptors;
+import com.vinted.flink.bigquery.client.BigQueryJsonClientProvider;
+import com.vinted.flink.bigquery.client.BigQueryStreamWriter;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
+import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import org.mockito.Mockito;
@@ -13,9 +16,10 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class MockJsonClientProvider implements ClientProvider<JsonStreamWriter>, Serializable {
+public class MockJsonClientProvider<A> implements ClientProvider<A>, Serializable {
     private static BigQueryWriteClient mockClient = Mockito.mock(BigQueryWriteClient.class);
     private static JsonStreamWriter writer = Mockito.mock(JsonStreamWriter.class);
 
@@ -160,9 +164,10 @@ public class MockJsonClientProvider implements ClientProvider<JsonStreamWriter>,
     }
 
     @Override
-    public JsonStreamWriter getWriter(String streamName, TableId table) {
+    public BigQueryStreamWriter<A> getWriter(String streamName, TableId table, RowValueSerializer<A> serializer) {
         numOfCreatedWriters.incrementAndGet();
-        return MockJsonClientProvider.writer;
+        Mockito.when(MockJsonClientProvider.writer.getWriterId()).thenReturn(UUID.randomUUID().toString());
+        return new com.vinted.flink.bigquery.client.JsonStreamWriter<>(serializer, MockJsonClientProvider.writer);
     }
 
 

@@ -5,6 +5,8 @@ import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
@@ -23,9 +25,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
-public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseable>
-        extends BigQuerySinkWriter<A, StreamT>
+public class BigQueryBufferedSinkWriter<A>
+        extends BigQuerySinkWriter<A>
         implements TwoPhaseCommittingSink.PrecommittingSinkWriter<Rows<A>, BigQueryCommittable> {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryBufferedSinkWriter.class);
     private Map<String, Long> streamOffsets = new ConcurrentHashMap<>();
@@ -33,12 +36,37 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
     public BigQueryBufferedSinkWriter(
             Sink.InitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
-            ClientProvider clientProvider,
+            ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {
         super(sinkInitContext, rowSerializer, clientProvider, executorProvider);
     }
 
-    protected abstract ApiFuture<AppendRowsResponse> append(String traceId, Rows<A> rows);
+    @Override
+    protected AppendResult append(String traceId, Rows<A> rows) {
+        var prows = ProtoRows
+                .newBuilder()
+                .addAllSerializedRows(rows.getData().stream().map(r -> ByteString.copyFrom(rowSerializer.serialize(r))).collect(Collectors.toList()))
+                .build();
+        var size = prows.getSerializedSize();
+        numBytesOutCounter.inc(size);
+        Optional.ofNullable(metrics.get(rows.getStream())).ifPresent(s -> s.updateSize(size));
+        var writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+
+        if (writer.isClosed()) {
+            logger.warn("Trace-id {}, StreamWrite is closed. Recreating stream for {}", traceId, rows.getStream());
+            recreateStreamWriter(traceId, rows.getStream(), writer.getWriterId(), rows.getTable());
+            writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+        }
+
+        logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
+
+        try {
+            return new AppendResult(writer.append(rows, rows.getOffset()), writer.getWriterId());
+        } catch (Throwable t) {
+            logger.error("Trace-id {}, StreamWriter failed to append {}", traceId, t.getMessage());
+            return AppendResult.failure(t, writer.getWriterId());
+        }
+    }
 
     @Override
     protected void writeWithRetry(String traceId, Rows<A> rows, int retryCount) throws Throwable {
@@ -47,9 +75,9 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
                     "Trace-id: {} Appending rows \nstream: {}\ntable: {}\noffset: {}\nsize: {}\nretries: {}",
                     traceId, rows.getStream(), rows.getTable(), rows.getOffset(), rows.getData().size(), retryCount
             );
-            var response = append(traceId, rows);
+            var result = append(traceId, rows);
             var callback = new AppendCallBack<>(this, rows, retryCount, traceId);
-            ApiFutures.addCallback(response, callback, appendExecutor);
+            ApiFutures.addCallback(result.response, callback, appendExecutor);
             try {
                 callback.future.get();
             } catch (ExecutionException e) {
@@ -191,14 +219,14 @@ public abstract class BigQueryBufferedSinkWriter<A, StreamT extends AutoCloseabl
     }
 
     static class AppendCallBack<A> implements ApiFutureCallback<AppendRowsResponse> {
-        private final BigQueryBufferedSinkWriter<?, ?> parent;
+        private final BigQueryBufferedSinkWriter<?> parent;
         private final Rows<A> rows;
         private final String traceId;
         private final int retryCount;
 
         private final CompletableFuture<AppendRowsResponse> future = new CompletableFuture<>();
 
-        public AppendCallBack(BigQueryBufferedSinkWriter<?, ?> parent, Rows<A> rows, int retryCount, String traceId) {
+        public AppendCallBack(BigQueryBufferedSinkWriter<?> parent, Rows<A> rows, int retryCount, String traceId) {
             this.parent = parent;
             this.rows = rows;
             this.traceId = traceId;

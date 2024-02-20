@@ -13,9 +13,9 @@ import com.vinted.flink.bigquery.sink.buffered.BigQueryBufferedSink;
 import com.vinted.flink.bigquery.sink.defaultStream.BigQueryDefaultSink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 
-public class BigQueryStreamSink<A, StreamT> {
+public class BigQueryStreamSink<A> {
     private RowValueSerializer<A> rowValueSerializer = new NoOpRowSerializer<>();
-    private ClientProvider<StreamT> clientProvider =  null;
+    private ClientProvider<A> clientProvider =  null;
 
     private ExecutorProvider executorProvider = MoreExecutors::directExecutor;
 
@@ -23,30 +23,26 @@ public class BigQueryStreamSink<A, StreamT> {
     private BigQueryStreamSink() {
     }
 
-    public static <A> BigQueryStreamSink<A, StreamWriter> newProto() {
+    public static <A> BigQueryStreamSink<A> newBuilder() {
         return new BigQueryStreamSink<>();
     }
 
-    public static <A> BigQueryStreamSink<A, JsonStreamWriter> newJson() {
-        return new BigQueryStreamSink<>();
-    }
-
-    public BigQueryStreamSink<A, StreamT> withRowValueSerializer(RowValueSerializer<A> serializer) {
+    public BigQueryStreamSink<A> withRowValueSerializer(RowValueSerializer<A> serializer) {
         this.rowValueSerializer = serializer;
         return this;
     }
 
-    public BigQueryStreamSink<A, StreamT> withClientProvider(ClientProvider<StreamT> clientProvider) {
+    public BigQueryStreamSink<A> withClientProvider(ClientProvider<A> clientProvider) {
         this.clientProvider = clientProvider;
         return this;
     }
 
-    public BigQueryStreamSink<A, StreamT> withExecutorProvider(ExecutorProvider executorProvider) {
+    public BigQueryStreamSink<A> withExecutorProvider(ExecutorProvider executorProvider) {
         this.executorProvider = executorProvider;
         return this;
     }
 
-    public BigQueryStreamSink<A, StreamT> withDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
+    public BigQueryStreamSink<A> withDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
         this.deliveryGuarantee = deliveryGuarantee;
         return this;
     }
