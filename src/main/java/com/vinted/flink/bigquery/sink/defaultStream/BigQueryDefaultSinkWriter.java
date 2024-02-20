@@ -3,6 +3,7 @@ package com.vinted.flink.bigquery.sink.defaultStream;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import com.vinted.flink.bigquery.metric.BigQueryStreamMetrics;
 import com.vinted.flink.bigquery.model.Rows;
@@ -50,7 +51,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
             var errorRows = e.<A>getRows();
             var errorTraceId = e.getTraceId();
             var status = Status.fromThrowable(error);
-            logger.error(this.createLogMessage("Non recoverable BigQuery stream AppendException for:",  errorTraceId, status, error, errorRows, 0), error);
+            logger.error(this.createLogMessage("Non recoverable async BigQuery stream AppendException for:",  errorTraceId, status, error, errorRows, 0), error);
             throw e;
         }
     }
@@ -106,6 +107,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
         private final BigQueryDefaultSinkWriter<A, ?> parent;
         private final Rows<A> rows;
         private final String traceId;
+
         private final int retryCount;
 
         public AppendCallBack(BigQueryDefaultSinkWriter<A, ?> parent, String traceId, Rows<A> rows, int retryCount) {
@@ -155,6 +157,16 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                         } catch (Throwable e) {
                             this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
                         }
+                    } else {
+                        logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
+                        this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
+                    }
+                    break;
+                case UNKNOWN:
+                    if (t instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException || t.getCause() instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException) {
+                        logger.info("Trace-id {} request timed out: {}", traceId, t.getMessage());
+                        this.parent.recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+                        retryWrite(t, retryCount - 1);
                     } else {
                         logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
                         this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
