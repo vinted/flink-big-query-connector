@@ -1,6 +1,7 @@
 package com.vinted.flink.bigquery;
 
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.JsonRowValueSerializer;
 import com.vinted.flink.bigquery.util.FlinkTest;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -54,6 +56,26 @@ public class BigQueryDefaultSinkTest {
 
 
         verify(mockClientProvider.getMockJsonWriter(), times(5)).append(any());
+    }
+
+    @Test
+    public void shouldRecreateWriterAndRetryFailingWithMaximumRequestCallbackWaitTimeExceededException(@FlinkTest.FlinkParam FlinkTest.PipelineRunner runner, @FlinkTest.FlinkParam MockJsonClientProvider mockClientProvider) throws Exception {
+        var cause = new Exceptions.MaximumRequestCallbackWaitTimeExceededException(Duration.ofMinutes(6), "id", Duration.ofMinutes(5));
+        mockClientProvider.givenFailingAppendWithStatus(Status.UNKNOWN.withCause(cause));
+        mockClientProvider.givenRetryCount(2);
+
+
+        assertThatThrownBy(() -> {
+            runner
+                    .withRetryCount(0)
+                    .runWithCustomSink(withBigQuerySink(mockClientProvider, pipeline(List.of(
+                            givenRow(1)
+                    ))));
+        }).isInstanceOf(JobExecutionException.class);
+
+
+        verify(mockClientProvider.getMockJsonWriter(), times(2)).append(any());
+        assertThat(mockClientProvider.getNumOfCreatedWriter()).isEqualTo(3);
     }
 
     @Test
