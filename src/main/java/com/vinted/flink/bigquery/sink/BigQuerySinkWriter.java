@@ -1,10 +1,12 @@
 package com.vinted.flink.bigquery.sink;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.common.collect.Iterators;
+import com.vinted.flink.bigquery.client.BigQueryStreamWriter;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import com.vinted.flink.bigquery.metric.BigQueryStreamMetrics;
 import com.vinted.flink.bigquery.model.Rows;
@@ -28,13 +30,13 @@ import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> implements SinkWriter<Rows<A>> {
+public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Iterator<Integer> streamIndexIterator;
     private final SinkWriterMetricGroup metricGroup;
 
-    protected ClientProvider<StreamT> clientProvider;
-    protected transient Map<String, StreamT> streamMap = new ConcurrentHashMap<>();
+    protected ClientProvider<A> clientProvider;
+    protected transient Map<String, BigQueryStreamWriter<A>> streamMap = new ConcurrentHashMap<>();
     protected Sink.InitContext sinkInitContext;
     protected RowValueSerializer<A> rowSerializer;
 
@@ -44,12 +46,12 @@ public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> imple
     protected Counter numRecordsOutCounter;
     protected transient Map<String, BigQueryStreamMetrics> metrics = new HashMap<>();
 
-    protected abstract ApiFuture<AppendRowsResponse> append(String traceId, Rows<A> rows);
+    protected abstract AppendResult append(String traceId, Rows<A> rows);
 
     public BigQuerySinkWriter(
             Sink.InitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
-            ClientProvider<StreamT> clientProvider,
+            ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {
 
         this.sinkInitContext = sinkInitContext;
@@ -67,28 +69,28 @@ public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> imple
 
     }
 
-    protected final StreamT streamWriter(String traceId, String streamName, TableId table) {
+    protected final BigQueryStreamWriter<A> streamWriter(String traceId, String streamName, TableId table) {
         var streamWithIndex = String.format("%s-%s",streamName, streamIndexIterator.next());
         return streamMap.computeIfAbsent(streamWithIndex, name -> {
             logger.trace("Trace-id {} Stream not found {}. Creating new stream", traceId, streamWithIndex);
             // Stream name can't contain index
-            return this.clientProvider.getWriter(streamName, table);
+            return this.clientProvider.getWriter(streamName, table, rowSerializer);
         });
     }
 
-    protected final void recreateAllStreamWriters(String traceId, String streamName, TableId table) {
+    protected final void recreateStreamWriter(String traceId, String streamName, String writerId, TableId table) {
         logger.info("Trace-id {} Closing all writers for {}", traceId, streamName);
         try {
             flush(true);
             streamMap.replaceAll((key, writer) -> {
                 var newWriter = writer;
-                if (key.startsWith(streamName)) {
+                if  (writer.getWriterId().equals(writerId)) {
                     try {
                         writer.close();
                     } catch (Exception e) {
                         logger.trace("Trace-id {} Could not close writer for {}", traceId, streamName);
                     }
-                    newWriter = this.clientProvider.getWriter(streamName, table);
+                    newWriter = this.clientProvider.getWriter(streamName, table, rowSerializer);
                 }
                 return newWriter;
             });
@@ -136,4 +138,17 @@ public abstract class BigQuerySinkWriter<A, StreamT extends AutoCloseable> imple
         );
     }
 
+    public static class AppendResult {
+        public final ApiFuture<AppendRowsResponse> response;
+        public final String writerId;
+
+        public AppendResult(ApiFuture<AppendRowsResponse> response, String writerId) {
+            this.response = response;
+            this.writerId = writerId;
+        }
+
+        public static AppendResult failure(Throwable t, String writerId) {
+            return new AppendResult(ApiFutures.immediateFailedFuture(t), writerId);
+        }
+    }
 }

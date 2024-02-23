@@ -14,13 +14,13 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
-public class BigQueryBufferedSink<A, StreamT> implements TwoPhaseCommittingSink<Rows<A>, BigQueryCommittable> {
+public class BigQueryBufferedSink<A> implements TwoPhaseCommittingSink<Rows<A>, BigQueryCommittable> {
     private final RowValueSerializer<A> rowValueSerializer;
-    private final ClientProvider<StreamT> clientProvider;
+    private final ClientProvider<A> clientProvider;
 
     private final ExecutorProvider executorProvider;
 
-    public BigQueryBufferedSink(RowValueSerializer<A> rowValueSerializer, ClientProvider<StreamT> clientProvider, ExecutorProvider executorProvider) {
+    public BigQueryBufferedSink(RowValueSerializer<A> rowValueSerializer, ClientProvider<A> clientProvider, ExecutorProvider executorProvider) {
         this.rowValueSerializer = rowValueSerializer;
         this.clientProvider = clientProvider;
         this.executorProvider = executorProvider;
@@ -28,13 +28,7 @@ public class BigQueryBufferedSink<A, StreamT> implements TwoPhaseCommittingSink<
 
     @Override
     public PrecommittingSinkWriter<Rows<A>, BigQueryCommittable> createWriter(InitContext context) throws IOException {
-        if (rowValueSerializer instanceof JsonRowValueSerializer) {
-            return new BigQueryJsonBufferedSinkWriter<>(context, rowValueSerializer, (ClientProvider<JsonStreamWriter>) clientProvider, executorProvider);
-        } else if (rowValueSerializer instanceof ProtoValueSerializer) {
-            return new BigQueryProtoBufferedSinkWriter<>(context, rowValueSerializer, (ClientProvider<StreamWriter>) clientProvider, executorProvider);
-        } else {
-            throw new RuntimeException("Not supported serializer");
-        }
+            return new BigQueryBufferedSinkWriter<>(context, rowValueSerializer,  clientProvider, executorProvider);
     }
 
     @Override

@@ -99,8 +99,8 @@ public class BigQueryBufferedSinkTest {
         return env -> env.fromCollection(data);
     }
 
-    private Function<StreamExecutionEnvironment, DataStreamSink<Rows<String>>> withBigQuerySink(MockJsonClientProvider mockClientProvider, Function<StreamExecutionEnvironment, DataStream<Rows<String>>> pipeline) {
-        var sink = BigQueryStreamSink.<String>newJson()
+    private Function<StreamExecutionEnvironment, DataStreamSink<Rows<String>>> withBigQuerySink(MockJsonClientProvider<String> mockClientProvider, Function<StreamExecutionEnvironment, DataStream<Rows<String>>> pipeline) {
+        var sink = BigQueryStreamSink.<String>newBuilder()
                 .withClientProvider(mockClientProvider)
                 .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .withRowValueSerializer((JsonRowValueSerializer<String>) String::getBytes)

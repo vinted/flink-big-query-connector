@@ -9,12 +9,12 @@ There are builder classes to simplify constructing a BigQuery sink. The code sni
 ```java
 var credentials = new JsonCredentialsProvider("key");
 
-var clientProvider = new BigQueryProtoClientProvider(credentials,
+var clientProvider = new BigQueryProtoClientProvider<String>(credentials,
     WriterSettings.newBuilder()
                  .build()
 );
 
-var bigQuerySink = BigQueryStreamSink.<String>newProto()
+var bigQuerySink = BigQueryStreamSink.<String>newBuilder()
     .withClientProvider(clientProvider)
     .withDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
     .withRowValueSerializer(new NoOpRowSerializer<>())
@@ -73,12 +73,12 @@ BigQuery supports two types of data formats: json and proto. When creating a str
 - JSON
 
 ```java
-var clientProvider = new BigQueryJsonClientProvider(credentials,
+var clientProvider = new BigQueryJsonClientProvider<String>(credentials,
     WriterSettings.newBuilder()
                  .build()
 );
 
-var bigQuerySink = BigQueryStreamSink.<String>newJson()
+var bigQuerySink = BigQueryStreamSink.<String>newBuilder()
 ```
 
 - Proto
@@ -89,7 +89,7 @@ var clientProvider = new BigQueryProtoClientProvider(credentials,
                  .build()
 );
 
-var bigQuerySink = BigQueryStreamSink.<String>newProto()
+var bigQuerySink = BigQueryStreamSink.<String>newBuilder();
 ```
 
 # Exactly once

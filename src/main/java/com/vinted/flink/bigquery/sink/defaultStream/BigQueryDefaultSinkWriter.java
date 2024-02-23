@@ -1,5 +1,6 @@
 package com.vinted.flink.bigquery.sink.defaultStream;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
@@ -19,8 +20,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.concurrent.Phaser;
 
-public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable>
-        extends BigQuerySinkWriter<A, StreamT> {
+public class BigQueryDefaultSinkWriter<A>
+        extends BigQuerySinkWriter<A> {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryDefaultSinkWriter.class);
 
     private final Phaser inflightRequestCount = new Phaser(1);
@@ -29,7 +30,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
     public BigQueryDefaultSinkWriter(
             Sink.InitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
-            ClientProvider<StreamT> clientProvider,
+            ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {
         super(sinkInitContext, rowSerializer, clientProvider, executorProvider);
 
@@ -56,6 +57,28 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
         }
     }
 
+    protected AppendResult append(String traceId, Rows<A> rows) {
+        var size = 0L;
+        numRecordsOutCounter.inc(rows.getData().size());
+        Optional.ofNullable(metrics.get(rows.getStream())).ifPresent(s -> s.updateSize(size));
+
+        var writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+
+        if (writer.isClosed()) {
+            logger.warn("Trace-id {}, StreamWrite is closed. Recreating stream for {}", traceId, rows.getStream());
+            recreateStreamWriter(traceId, rows.getStream(), writer.getWriterId(), rows.getTable());
+            writer = streamWriter(traceId, rows.getStream(), rows.getTable());
+        }
+
+        logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, rows.getStream(), writer.getStreamName(), writer.getWriterId());
+        try {
+            return new AppendResult(writer.append(rows), writer.getWriterId());
+        } catch (Throwable t) {
+            logger.error("Trace-id {}, StreamWriter failed to append {}", traceId, t.getMessage());
+            return AppendResult.failure(t, writer.getWriterId());
+        }
+    }
+
     @Override
     protected void writeWithRetry(String traceId, Rows<A> rows, int retryCount) throws Throwable {
         try {
@@ -64,9 +87,9 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                     "Trace-id: {} Appending rows \nstream: {}\ntable: {}\noffset: {}\nsize: {}\nretries: {}",
                     traceId, rows.getStream(), rows.getTable(), rows.getOffset(), rows.getData().size(), retryCount
             );
-            var response = append(traceId, rows);
-            var callback = new AppendCallBack<>(this, traceId, rows, retryCount);
-            ApiFutures.addCallback(response, callback, appendExecutor);
+            var result = append(traceId, rows);
+            var callback = new AppendCallBack<>(this, result.writerId, traceId, rows, retryCount);
+            ApiFutures.addCallback(result.response, callback, appendExecutor);
             inflightRequestCount.register();
         } catch (AppendException exception) {
             var error = exception.getError();
@@ -104,14 +127,17 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
     }
 
     static class AppendCallBack<A> implements ApiFutureCallback<AppendRowsResponse> {
-        private final BigQueryDefaultSinkWriter<A, ?> parent;
+        private final BigQueryDefaultSinkWriter<A> parent;
         private final Rows<A> rows;
+
+        private final String writerId;
         private final String traceId;
 
         private final int retryCount;
 
-        public AppendCallBack(BigQueryDefaultSinkWriter<A, ?> parent, String traceId, Rows<A> rows, int retryCount) {
+        public AppendCallBack(BigQueryDefaultSinkWriter<A> parent, String writerId, String traceId, Rows<A> rows, int retryCount) {
             this.parent = parent;
+            this.writerId = writerId;
             this.traceId = traceId;
             this.rows = rows;
             this.retryCount = retryCount;
@@ -140,7 +166,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                     break;
                 case ABORTED:
                 case UNAVAILABLE: {
-                    this.parent.recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+                    this.parent.recreateStreamWriter(traceId, rows.getStream(), writerId, rows.getTable());
                     retryWrite(t, retryCount - 1);
                     break;
                 }
@@ -165,7 +191,7 @@ public abstract class BigQueryDefaultSinkWriter<A, StreamT extends AutoCloseable
                 case UNKNOWN:
                     if (t instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException || t.getCause() instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException) {
                         logger.info("Trace-id {} request timed out: {}", traceId, t.getMessage());
-                        this.parent.recreateAllStreamWriters(traceId, rows.getStream(), rows.getTable());
+                        this.parent.recreateStreamWriter(traceId, rows.getStream(), writerId, rows.getTable());
                         retryWrite(t, retryCount - 1);
                     } else {
                         logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());

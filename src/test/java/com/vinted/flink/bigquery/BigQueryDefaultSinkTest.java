@@ -4,6 +4,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.JsonRowValueSerializer;
+import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import com.vinted.flink.bigquery.util.FlinkTest;
 import com.vinted.flink.bigquery.util.MockJsonClientProvider;
 import io.grpc.Status;
@@ -128,7 +129,7 @@ public class BigQueryDefaultSinkTest {
     }
 
     @Test
-    public void shouldFailAndNotRetryWhenAppendingToFinalizedStream(@FlinkTest.FlinkParam FlinkTest.PipelineRunner runner, @FlinkTest.FlinkParam MockJsonClientProvider mockClientProvider) throws Exception {
+    public void shouldFailAndNotRetryWhenAppendingToFinalizedStream(@FlinkTest.FlinkParam FlinkTest.PipelineRunner runner, @FlinkTest.FlinkParam MockJsonClientProvider<String> mockClientProvider) throws Exception {
         mockClientProvider.givenStreamIsFinalized(stream);
 
         assertThatThrownBy(() -> {
@@ -186,11 +187,11 @@ public class BigQueryDefaultSinkTest {
         return env -> env.fromCollection(data);
     }
 
-    private Function<StreamExecutionEnvironment, DataStreamSink<Rows<String>>> withBigQuerySink(MockJsonClientProvider mockClientProvider, Function<StreamExecutionEnvironment, DataStream<Rows<String>>> pipeline) {
-        var sink = BigQueryStreamSink.<String>newJson()
+    private Function<StreamExecutionEnvironment, DataStreamSink<Rows<String>>> withBigQuerySink(MockJsonClientProvider<String> mockClientProvider, Function<StreamExecutionEnvironment, DataStream<Rows<String>>> pipeline) {
+        var sink = BigQueryStreamSink.<String>newBuilder()
                 .withClientProvider(mockClientProvider)
                 .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .withRowValueSerializer((JsonRowValueSerializer<String>) String::getBytes)
+                .withRowValueSerializer((RowValueSerializer<String>) String::getBytes)
                 .build();
 
         return pipeline.andThen(s -> s.sinkTo(sink));
