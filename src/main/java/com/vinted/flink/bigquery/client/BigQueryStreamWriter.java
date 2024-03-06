@@ -11,5 +11,7 @@ public interface BigQueryStreamWriter<T> extends AutoCloseable {
     String getStreamName();
 
     String getWriterId();
+
+    long getInflightWaitSeconds();
     boolean isClosed();
 }

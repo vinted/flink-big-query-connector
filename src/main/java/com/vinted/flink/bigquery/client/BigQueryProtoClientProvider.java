@@ -55,6 +55,7 @@ public class BigQueryProtoClientProvider<A> implements ClientProvider<A> {
                     .setExecutorProvider(executorProvider)
                     .setLocation(table.getProject())
                     .setWriterSchema(protoSchema);
+
             StreamWriter.setMaxRequestCallbackWaitTime(this.writerSettings.getMaxRequestWaitCallbackTime());
             return new ProtoStreamWriter<>(serializer, streamWriterBuilder.build());
         } catch (IOException | Descriptors.DescriptorValidationException e) {
