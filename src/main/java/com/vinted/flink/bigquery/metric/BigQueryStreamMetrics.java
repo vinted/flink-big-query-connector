@@ -8,6 +8,8 @@ public class BigQueryStreamMetrics {
     private double batchSizeInMb = 0.0;
     private long splitBatchCount = 0;
 
+    private int timeoutCount = 0;
+
     public BigQueryStreamMetrics(String streamName) {
         this.streamName = streamName;
     }
@@ -41,5 +43,13 @@ public class BigQueryStreamMetrics {
 
     public long getSplitBatchCount() {
         return splitBatchCount;
+    }
+
+    public int getTimeoutCount() {
+        return timeoutCount;
+    }
+
+    public void incrementTimeoutCount() {
+        this.timeoutCount++;
     }
 }

@@ -51,10 +51,11 @@ public class BigQueryProtoClientProvider<A> implements ClientProvider<A> {
                     .setMaxInflightBytes(this.writerSettings.getMaxInflightBytes())
                     .setMaxRetryDuration(this.writerSettings.getMaxRetryDuration())
                     .setEnableConnectionPool(this.writerSettings.getEnableConnectionPool())
+                    .setChannelProvider(BigQueryWriteSettings.defaultTransportChannelProvider())
                     .setExecutorProvider(executorProvider)
                     .setLocation(table.getProject())
                     .setWriterSchema(protoSchema);
-
+            StreamWriter.setMaxRequestCallbackWaitTime(this.writerSettings.getMaxRequestWaitCallbackTime());
             return new ProtoStreamWriter<>(serializer, streamWriterBuilder.build());
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             throw new RuntimeException(e);

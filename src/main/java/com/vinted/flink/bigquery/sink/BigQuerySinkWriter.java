@@ -111,6 +111,7 @@ public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
             group.gauge("batch_count", metric::getBatchCount);
             group.gauge("batch_size_mb", metric::getBatchSizeInMb);
             group.gauge("split_batch_count", metric::getSplitBatchCount);
+            group.gauge("callback_timeouts", metric::getTimeoutCount);
 
             return metric;
         });
