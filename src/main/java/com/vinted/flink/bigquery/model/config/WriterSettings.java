@@ -16,6 +16,8 @@ public class WriterSettings implements Serializable {
     private Long maxInflightRequests;
     private Long maxInflightBytes;
     private Duration maxRetryDuration;
+
+    private Duration maxRequestWaitCallbackTime;
     private Boolean enableConnectionPool;
 
     public int getStreamsPerTable() {
@@ -69,6 +71,14 @@ public class WriterSettings implements Serializable {
         return new WriterSettingsBuilder();
     }
 
+    public Duration getMaxRequestWaitCallbackTime() {
+        return maxRequestWaitCallbackTime;
+    }
+
+    public void setMaxRequestWaitCallbackTime(Duration maxRequestWaitCallbackTime) {
+        this.maxRequestWaitCallbackTime = maxRequestWaitCallbackTime;
+    }
+
     public static final class WriterSettingsBuilder implements Serializable {
         private int streamsPerTable = 1;
         private int writerThreads = 1;
@@ -78,6 +88,7 @@ public class WriterSettings implements Serializable {
         private Long maxInflightRequests = 1000L;
         private Long maxInflightBytes = 100L * 1024L * 1024L; // 100Mb.
         private Duration maxRetryDuration = Duration.ofMinutes(5);
+        private Duration maxRequestWaitCallbackTime = Duration.ofMinutes(5);
         private Boolean enableConnectionPool = false;
 
         private WriterSettingsBuilder() {
@@ -123,6 +134,11 @@ public class WriterSettings implements Serializable {
             return this;
         }
 
+        public WriterSettingsBuilder withMaxRequestWaitCallbackTime(Duration maxRequestWaitCallbackTime) {
+            this.maxRequestWaitCallbackTime = maxRetryDuration;
+            return this;
+        }
+
         public WriterSettingsBuilder withEnableConnectionPool(Boolean enableConnectionPool) {
             this.enableConnectionPool = enableConnectionPool;
             return this;
@@ -139,6 +155,7 @@ public class WriterSettings implements Serializable {
             writerSettings.maxInflightRequests = this.maxInflightRequests;
             writerSettings.retryPause = this.retryPause;
             writerSettings.maxRetryDuration = this.maxRetryDuration;
+            writerSettings.maxRequestWaitCallbackTime = this.maxRequestWaitCallbackTime;
             return writerSettings;
         }
     }

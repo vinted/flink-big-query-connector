@@ -3,10 +3,8 @@ package com.vinted.flink.bigquery.client;
 import com.google.api.gax.core.FixedExecutorProvider;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
-import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
+import com.google.cloud.bigquery.storage.v1.*;
 import com.google.cloud.bigquery.storage.v1.JsonStreamWriter;
-import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors;
 import com.vinted.flink.bigquery.model.config.Credentials;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
@@ -53,7 +51,7 @@ public class BigQueryJsonClientProvider<A> implements ClientProvider<A> {
                     .setEnableConnectionPool(this.writerSettings.getEnableConnectionPool())
                     .setExecutorProvider(executorProvider)
                     .build();
-
+            JsonStreamWriter.setMaxRequestCallbackWaitTime(this.writerSettings.getMaxRequestWaitCallbackTime());
             return new com.vinted.flink.bigquery.client.JsonStreamWriter<>(serializer, writer);
         } catch (Descriptors.DescriptorValidationException | IOException | InterruptedException e) {
             throw new RuntimeException(e);

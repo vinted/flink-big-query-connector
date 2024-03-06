@@ -39,6 +39,11 @@ public class ProtoStreamWriter<A> implements BigQueryStreamWriter<A>{
     }
 
     @Override
+    public long getInflightWaitSeconds() {
+        return writer.getInflightWaitSeconds();
+    }
+
+    @Override
     public String getStreamName() {
         return writer.getStreamName();
     }

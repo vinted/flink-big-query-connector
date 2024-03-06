@@ -191,6 +191,8 @@ public class BigQueryDefaultSinkWriter<A>
                 case UNKNOWN:
                     if (t instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException || t.getCause() instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException) {
                         logger.info("Trace-id {} request timed out: {}", traceId, t.getMessage());
+                        Optional.ofNullable(this.parent.metrics.get(rows.getStream()))
+                                .ifPresent(BigQueryStreamMetrics::incrementTimeoutCount);
                         this.parent.recreateStreamWriter(traceId, rows.getStream(), writerId, rows.getTable());
                         retryWrite(t, retryCount - 1);
                     } else {

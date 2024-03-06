@@ -69,12 +69,22 @@ public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
 
     }
 
+    private void registerInflightMetric(String streamName, BigQueryStreamWriter<A> writer) {
+        var group = metricGroup
+                .addGroup("stream", streamName)
+                .addGroup("writer_id", writer.getWriterId());
+
+        group.gauge("inflight_wait_seconds", writer::getInflightWaitSeconds);
+    }
+
     protected final BigQueryStreamWriter<A> streamWriter(String traceId, String streamName, TableId table) {
         var streamWithIndex = String.format("%s-%s",streamName, streamIndexIterator.next());
         return streamMap.computeIfAbsent(streamWithIndex, name -> {
             logger.trace("Trace-id {} Stream not found {}. Creating new stream", traceId, streamWithIndex);
             // Stream name can't contain index
-            return this.clientProvider.getWriter(streamName, table, rowSerializer);
+            var writer = this.clientProvider.getWriter(streamName, table, rowSerializer);
+            registerInflightMetric(streamName, writer);
+            return writer;
         });
     }
 
@@ -91,6 +101,7 @@ public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
                         logger.trace("Trace-id {} Could not close writer for {}", traceId, streamName);
                     }
                     newWriter = this.clientProvider.getWriter(streamName, table, rowSerializer);
+                    registerInflightMetric(streamName, writer);
                 }
                 return newWriter;
             });
@@ -111,6 +122,7 @@ public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
             group.gauge("batch_count", metric::getBatchCount);
             group.gauge("batch_size_mb", metric::getBatchSizeInMb);
             group.gauge("split_batch_count", metric::getSplitBatchCount);
+            group.gauge("callback_timeouts", metric::getTimeoutCount);
 
             return metric;
         });
