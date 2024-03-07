@@ -88,7 +88,7 @@ public class BigQueryDefaultSinkWriter<A>
                     traceId, rows.getStream(), rows.getTable(), rows.getOffset(), rows.getData().size(), retryCount
             );
             var result = append(traceId, rows);
-            var callback = new AppendCallBack<>(this, result.writerId, traceId, rows, retryCount);
+            var callback = new AppendCallBack<>(this, traceId, rows, retryCount);
             ApiFutures.addCallback(result.response, callback, appendExecutor);
             inflightRequestCount.register();
         } catch (AppendException exception) {
@@ -130,14 +130,12 @@ public class BigQueryDefaultSinkWriter<A>
         private final BigQueryDefaultSinkWriter<A> parent;
         private final Rows<A> rows;
 
-        private final String writerId;
         private final String traceId;
 
         private final int retryCount;
 
-        public AppendCallBack(BigQueryDefaultSinkWriter<A> parent, String writerId, String traceId, Rows<A> rows, int retryCount) {
+        public AppendCallBack(BigQueryDefaultSinkWriter<A> parent, String traceId, Rows<A> rows, int retryCount) {
             this.parent = parent;
-            this.writerId = writerId;
             this.traceId = traceId;
             this.rows = rows;
             this.retryCount = retryCount;
@@ -155,79 +153,8 @@ public class BigQueryDefaultSinkWriter<A>
 
         @Override
         public void onFailure(Throwable t) {
-            var status = Status.fromThrowable(t);
-            switch (status.getCode()) {
-                case INTERNAL:
-                case CANCELLED:
-                case FAILED_PRECONDITION:
-                case DEADLINE_EXCEEDED:
-                    doPauseBeforeRetry();
-                    retryWrite(t, retryCount - 1);
-                    break;
-                case ABORTED:
-                case UNAVAILABLE: {
-                    this.parent.recreateStreamWriter(traceId, rows.getStream(), writerId, rows.getTable());
-                    retryWrite(t, retryCount - 1);
-                    break;
-                }
-                case INVALID_ARGUMENT:
-                    if (t.getMessage().contains("INVALID_ARGUMENT: MessageSize is too large.")) {
-                        Optional.ofNullable(this.parent.metrics.get(rows.getStream())).ifPresent(BigQueryStreamMetrics::incSplitCount);
-                        logger.warn("Trace-id {} MessageSize is too large. Splitting batch", traceId);
-                        var data = rows.getData();
-                        var first = data.subList(0, data.size() / 2);
-                        var second = data.subList(data.size() / 2, data.size());
-                        try {
-                            this.parent.writeWithRetry(traceId, rows.updateBatch(first, rows.getOffset()), retryCount - 1);
-                            this.parent.writeWithRetry(traceId, rows.updateBatch(second, rows.getOffset() + first.size()), retryCount - 1);
-                        } catch (Throwable e) {
-                            this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-                        }
-                    } else {
-                        logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
-                        this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-                    }
-                    break;
-                case UNKNOWN:
-                    if (t instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException || t.getCause() instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException) {
-                        logger.info("Trace-id {} request timed out: {}", traceId, t.getMessage());
-                        Optional.ofNullable(this.parent.metrics.get(rows.getStream()))
-                                .ifPresent(BigQueryStreamMetrics::incrementTimeoutCount);
-                        this.parent.recreateStreamWriter(traceId, rows.getStream(), writerId, rows.getTable());
-                        retryWrite(t, retryCount - 1);
-                    } else {
-                        logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
-                        this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-                    }
-                    break;
-                default:
-                    logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
-                    this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
-            }
+            this.parent.appendAsyncException = new AppendException(traceId, rows, retryCount, t);
             this.parent.inflightRequestCount.arriveAndDeregister();
-        }
-
-        private void retryWrite(Throwable t, int newRetryCount) {
-            var status = Status.fromThrowable(t);
-            try {
-                if (newRetryCount > 0) {
-                    logger.warn("Trace-id {} Recoverable error {}. Retrying {} ...", traceId, status.getCode(), retryCount);
-                    this.parent.writeWithRetry(traceId, rows, newRetryCount);
-                } else {
-                    logger.error("Trace-id {} Recoverable error {}. No more retries left", traceId, status.getCode(), t);
-                    this.parent.appendAsyncException = new AppendException(traceId, rows, newRetryCount, t);
-                }
-            } catch (Throwable e) {
-                this.parent.appendAsyncException = new AppendException(traceId, rows, newRetryCount, e);
-            }
-        }
-
-        private void doPauseBeforeRetry() {
-            try {
-                Thread.sleep(parent.clientProvider.writeSettings().getRetryPause().toMillis());
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
         }
     }
 }
