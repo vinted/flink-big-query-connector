@@ -38,7 +38,7 @@ public class BigQueryBufferedSinkTest {
                 givenRows(1)
         ))));
 
-        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(), anyLong());
     }
 
     @Test
@@ -52,7 +52,7 @@ public class BigQueryBufferedSinkTest {
                 ))));
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(3)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(3)).append(any(), anyLong());
     }
 
     @Test
@@ -61,14 +61,14 @@ public class BigQueryBufferedSinkTest {
 
         assertThatThrownBy(() -> {
             runner
-                    .withRetryCount(0)
+                    .withRetryCount(4)
                     .runWithCustomSink(withBigQuerySink(mockClientProvider, pipeline(List.of(
                             givenRows(1)
                     ))));
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(5)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(5)).append(any(), anyLong());
     }
 
     @Test
@@ -84,7 +84,7 @@ public class BigQueryBufferedSinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(), anyLong());
     }
 
     private Rows<String> givenRows(int count) {
@@ -102,7 +102,7 @@ public class BigQueryBufferedSinkTest {
     private Function<StreamExecutionEnvironment, DataStreamSink<Rows<String>>> withBigQuerySink(MockJsonClientProvider<String> mockClientProvider, Function<StreamExecutionEnvironment, DataStream<Rows<String>>> pipeline) {
         var sink = BigQueryStreamSink.<String>newBuilder()
                 .withClientProvider(mockClientProvider)
-                .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+                .withDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
                 .withRowValueSerializer((JsonRowValueSerializer<String>) String::getBytes)
                 .build();
 
