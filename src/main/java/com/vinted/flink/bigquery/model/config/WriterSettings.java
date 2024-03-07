@@ -135,7 +135,7 @@ public class WriterSettings implements Serializable {
         }
 
         public WriterSettingsBuilder withMaxRequestWaitCallbackTime(Duration maxRequestWaitCallbackTime) {
-            this.maxRequestWaitCallbackTime = maxRetryDuration;
+            this.maxRequestWaitCallbackTime = maxRequestWaitCallbackTime;
             return this;
         }
 
