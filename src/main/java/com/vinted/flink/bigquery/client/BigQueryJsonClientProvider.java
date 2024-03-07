@@ -1,6 +1,7 @@
 package com.vinted.flink.bigquery.client;
 
 import com.google.api.gax.core.FixedExecutorProvider;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.*;
@@ -10,6 +11,7 @@ import com.vinted.flink.bigquery.model.config.Credentials;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
 import com.vinted.flink.bigquery.schema.SchemaTransformer;
 import com.vinted.flink.bigquery.serializer.RowValueSerializer;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -46,13 +48,25 @@ public class BigQueryJsonClientProvider<A> implements ClientProvider<A> {
             var executorProvider = this.writerSettings.getWriterThreads() > 1 ?
                     FixedExecutorProvider.create(Executors.newScheduledThreadPool(writerSettings.getWriterThreads())) :
                     BigQueryWriteSettings.defaultExecutorProviderBuilder().build();
-            var writer = JsonStreamWriter
+            var writerBuilder = JsonStreamWriter
                     .newBuilder(streamName, getTableSchema(table), this.getClient())
                     .setEnableConnectionPool(this.writerSettings.getEnableConnectionPool())
-                    .setExecutorProvider(executorProvider)
-                    .build();
+                    .setExecutorProvider(executorProvider);
+
+            if (writerSettings.getRetrySettings() != null) {
+                var settings = writerSettings.getRetrySettings();
+                var retrySettings =
+                        RetrySettings.newBuilder()
+                                .setInitialRetryDelay(Duration.ofMillis(settings.getInitialRetryDelay().toMillis()))
+                                .setRetryDelayMultiplier(settings.getRetryDelayMultiplier())
+                                .setMaxAttempts(settings.getMaxRetryAttempts())
+                                .setMaxRetryDelay(Duration.ofMillis(settings.getMaxRetryDelay().toMillis()))
+                                .build();
+
+                writerBuilder.setRetrySettings(retrySettings);
+            }
             JsonStreamWriter.setMaxRequestCallbackWaitTime(this.writerSettings.getMaxRequestWaitCallbackTime());
-            return new com.vinted.flink.bigquery.client.JsonStreamWriter<>(serializer, writer);
+            return new com.vinted.flink.bigquery.client.JsonStreamWriter<>(serializer, writerBuilder.build());
         } catch (Descriptors.DescriptorValidationException | IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

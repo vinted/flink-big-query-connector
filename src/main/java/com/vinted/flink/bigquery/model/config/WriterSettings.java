@@ -13,12 +13,14 @@ public class WriterSettings implements Serializable {
     private Duration timeout;
     private int retryCount;
     private Duration retryPause;
-    private Long maxInflightRequests;
-    private Long maxInflightBytes;
+    private long maxInflightRequests;
+    private long maxInflightBytes;
     private Duration maxRetryDuration;
 
     private Duration maxRequestWaitCallbackTime;
-    private Boolean enableConnectionPool;
+    private boolean enableConnectionPool;
+
+    private WriterRetrySettings retrySettings;
 
     public int getStreamsPerTable() {
         return streamsPerTable;
@@ -79,6 +81,14 @@ public class WriterSettings implements Serializable {
         this.maxRequestWaitCallbackTime = maxRequestWaitCallbackTime;
     }
 
+    public WriterRetrySettings getRetrySettings() {
+        return retrySettings;
+    }
+
+    public void setRetrySettings(WriterRetrySettings retrySettings) {
+        this.retrySettings = retrySettings;
+    }
+
     public static final class WriterSettingsBuilder implements Serializable {
         private int streamsPerTable = 1;
         private int writerThreads = 1;
@@ -90,6 +100,8 @@ public class WriterSettings implements Serializable {
         private Duration maxRetryDuration = Duration.ofMinutes(5);
         private Duration maxRequestWaitCallbackTime = Duration.ofMinutes(5);
         private Boolean enableConnectionPool = false;
+
+        private WriterRetrySettings retrySettings = null;
 
         private WriterSettingsBuilder() {
         }
@@ -135,12 +147,17 @@ public class WriterSettings implements Serializable {
         }
 
         public WriterSettingsBuilder withMaxRequestWaitCallbackTime(Duration maxRequestWaitCallbackTime) {
-            this.maxRequestWaitCallbackTime = maxRetryDuration;
+            this.maxRequestWaitCallbackTime = maxRequestWaitCallbackTime;
             return this;
         }
 
         public WriterSettingsBuilder withEnableConnectionPool(Boolean enableConnectionPool) {
             this.enableConnectionPool = enableConnectionPool;
+            return this;
+        }
+
+        public WriterSettingsBuilder withRetrySettings(WriterRetrySettings retrySettings) {
+            this.retrySettings = retrySettings;
             return this;
         }
 
@@ -156,6 +173,7 @@ public class WriterSettings implements Serializable {
             writerSettings.retryPause = this.retryPause;
             writerSettings.maxRetryDuration = this.maxRetryDuration;
             writerSettings.maxRequestWaitCallbackTime = this.maxRequestWaitCallbackTime;
+            writerSettings.retrySettings = this.retrySettings;
             return writerSettings;
         }
     }
