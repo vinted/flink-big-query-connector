@@ -119,6 +119,10 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
             logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, request.getStream(), writer.getStreamName(), writer.getWriterId());
             return CompletableFuture.<List<StreamRequest>>supplyAsync(() ->{
                 try {
+                    Optional.ofNullable(metrics.get(request.getStream())).ifPresent(s -> {
+                        s.updateSize(request.getData().getSerializedSize());
+                        s.setBatchCount(request.getData().getSerializedRowsCount());
+                    });
                     writer.append(request.getData()).get();
                     return List.of();
                 } catch (Throwable t) {
