@@ -67,7 +67,7 @@ public class AsyncBigQuerySinkBuilder<A> extends AsyncSinkBaseBuilder<Rows<A>, S
         return new AsyncBigQuerySink<>(
                 this.provider,
                 this.strategy,
-                new ProtoElementConverter<>(this.serializer),
+                new ProtoElementConverter<>(this.serializer, this.provider.writeSettings().getRetryCount()),
                 getMaxBatchSize(),
                 getMaxInFlightRequests(),
                 getMaxBufferedRequests(),

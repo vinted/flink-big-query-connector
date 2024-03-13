@@ -65,6 +65,8 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
         flinkCluster.after();
         MockClock.reset();
         MockJsonClientProvider.reset();
+        MockProtoClientProvider.reset();
+        MockAsyncProtoClientProvider.reset();
         ProcessFunctionWithError.clear();
         TestSink.clear();
     }
@@ -75,6 +77,7 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
         MockClock.reset();
         MockJsonClientProvider.reset();
         MockProtoClientProvider.reset();
+        MockAsyncProtoClientProvider.reset();
         ProcessFunctionWithError.clear();
         TestSink.clear();
     }
@@ -91,11 +94,15 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
             return new MockClock();
         }
         if (MockJsonClientProvider.class.equals(type)) {
-            return new MockJsonClientProvider();
+            return new MockJsonClientProvider<>();
         }
 
         if (MockProtoClientProvider.class.equals(type)) {
             return new MockProtoClientProvider();
+        }
+
+        if (MockAsyncProtoClientProvider.class.equals(type)) {
+            return new MockAsyncProtoClientProvider();
         }
 
         if (PipelineRunner.class.equals(type)) {

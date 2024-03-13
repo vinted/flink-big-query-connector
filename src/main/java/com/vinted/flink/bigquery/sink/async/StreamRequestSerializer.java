@@ -14,6 +14,7 @@ public class StreamRequestSerializer extends AsyncSinkWriterStateSerializer<Stre
             dataOutputStream.writeUTF(request.getTable().getProject());
             dataOutputStream.writeUTF(request.getTable().getDataset());
             dataOutputStream.writeUTF(request.getTable().getTable());
+            dataOutputStream.writeInt(request.getRetries());
             var bytes = request.getData().toByteArray();
             dataOutputStream.writeInt(bytes.length);
             dataOutputStream.write(bytes);
@@ -26,11 +27,12 @@ public class StreamRequestSerializer extends AsyncSinkWriterStateSerializer<Stre
             var project = dataInputStream.readUTF();
             var dataset = dataInputStream.readUTF();
             var table = dataInputStream.readUTF();
+            var retries = dataInputStream.readInt();
             var dataLength = dataInputStream.readInt();
             var data = dataInputStream.readNBytes(dataLength);
             var tableId = TableId.of(project, dataset, table);
             try {
-                return new StreamRequest(name, tableId, ProtoRows.parseFrom(data));
+                return new StreamRequest(name, tableId, ProtoRows.parseFrom(data), retries);
             } catch (Exception e) {
                 throw new RuntimeException("name=" + name + " project=" + project + " dataset=" + dataset + " table=" + table + " " + e.getMessage());
             }

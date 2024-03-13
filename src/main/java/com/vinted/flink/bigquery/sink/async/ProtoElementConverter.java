@@ -12,8 +12,11 @@ import java.util.stream.Collectors;
 public class ProtoElementConverter<A> implements ElementConverter<Rows<A>, StreamRequest> {
     private final RowValueSerializer<A> serializer;
 
-    public ProtoElementConverter(RowValueSerializer<A> serializer) {
+    private final int retries;
+
+    public ProtoElementConverter(RowValueSerializer<A> serializer, int retries) {
         this.serializer = serializer;
+        this.retries = retries;
     }
 
     @Override
@@ -22,6 +25,6 @@ public class ProtoElementConverter<A> implements ElementConverter<Rows<A>, Strea
                 .newBuilder()
                 .addAllSerializedRows(rows.getData().stream().map(r -> ByteString.copyFrom(serializer.serialize(r))).collect(Collectors.toList()))
                 .build();
-        return new StreamRequest(rows.getStream(), rows.getTable(), prows);
+        return new StreamRequest(rows.getStream(), rows.getTable(), prows, this.retries);
     }
 }

@@ -8,13 +8,15 @@ import java.io.Serializable;
 public class StreamRequest implements Serializable {
     private String stream;
     private TableId table;
-
     private ProtoRows data;
 
-    public StreamRequest(String stream, TableId table, ProtoRows data) {
+    private int retries;
+
+    public StreamRequest(String stream, TableId table, ProtoRows data, int retries) {
         this.stream = stream;
         this.table = table;
         this.data = data;
+        this.retries = retries;
     }
 
     public String getStream() {
@@ -39,5 +41,13 @@ public class StreamRequest implements Serializable {
 
     public void setData(ProtoRows data) {
         this.data = data;
+    }
+
+    public int getRetries() {
+        return retries;
+    }
+
+    public void setRetries(int retries) {
+        this.retries = retries;
     }
 }

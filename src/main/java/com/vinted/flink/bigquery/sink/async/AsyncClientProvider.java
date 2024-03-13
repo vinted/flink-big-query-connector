@@ -1,6 +1,7 @@
 package com.vinted.flink.bigquery.sink.async;
 
 import com.google.api.gax.core.FixedExecutorProvider;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.*;
@@ -8,6 +9,7 @@ import com.google.protobuf.Descriptors;
 import com.vinted.flink.bigquery.model.config.Credentials;
 import com.vinted.flink.bigquery.model.config.WriterSettings;
 import com.vinted.flink.bigquery.schema.SchemaTransformer;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -43,17 +45,36 @@ public class AsyncClientProvider implements Serializable  {
             var executorProvider = this.writerSettings.getWriterThreads() > 1 ?
                     FixedExecutorProvider.create(Executors.newScheduledThreadPool(writerSettings.getWriterThreads())) :
                     BigQueryWriteSettings.defaultExecutorProviderBuilder().build();
-            return StreamWriter
+
+
+
+            var streamWriterBuilder = StreamWriter
                     .newBuilder(streamName, getClient())
                     .setMaxInflightRequests(this.writerSettings.getMaxInflightRequests())
                     .setMaxInflightBytes(this.writerSettings.getMaxInflightBytes())
                     .setMaxRetryDuration(this.writerSettings.getMaxRetryDuration())
                     .setEnableConnectionPool(this.writerSettings.getEnableConnectionPool())
+                    .setChannelProvider(BigQueryWriteSettings.defaultTransportChannelProvider())
                     .setExecutorProvider(executorProvider)
                     .setLocation(table.getProject())
-                    .setWriterSchema(protoSchema)
-                    .build();
+                    .setWriterSchema(protoSchema);
 
+            if (writerSettings.getRetrySettings() != null) {
+                var settings = writerSettings.getRetrySettings();
+                var retrySettings =
+                        RetrySettings.newBuilder()
+                                .setInitialRetryDelay(Duration.ofMillis(settings.getInitialRetryDelay().toMillis()))
+                                .setRetryDelayMultiplier(settings.getRetryDelayMultiplier())
+                                .setMaxAttempts(settings.getMaxRetryAttempts())
+                                .setMaxRetryDelay(Duration.ofMillis(settings.getMaxRetryDelay().toMillis()))
+                                .build();
+
+                streamWriterBuilder.setRetrySettings(retrySettings);
+            }
+
+            StreamWriter.setMaxRequestCallbackWaitTime(this.writerSettings.getMaxRequestWaitCallbackTime());
+
+            return streamWriterBuilder.build();
         } catch (IOException | Descriptors.DescriptorValidationException e) {
             throw new RuntimeException(e);
         }
