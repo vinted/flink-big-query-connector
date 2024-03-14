@@ -6,6 +6,7 @@ import org.apache.flink.api.common.time.Time;
 import com.vinted.flink.bigquery.process.StreamState;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -142,23 +143,7 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
 
 
         public <T> List<T> run(Function<StreamExecutionEnvironment, DataStream<T>> execute) throws Exception {
-            var env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(defaultParallelism);
-            env.enableCheckpointing(10);
-            env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-            env.getCheckpointConfig().setMinPauseBetweenCheckpoints(10);
-            env.getCheckpointConfig().enableUnalignedCheckpoints();
-            env.getCheckpointConfig().setCheckpointStorage(tempDir.toUri());
-            env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-            env.configure(config);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-                    retryCount, // number of restart attempts
-                    Time.of(5, TimeUnit.MILLISECONDS) // delay
-            ));
-
-            env.getConfig().registerKryoType(StreamState.class);
-            env.getConfig().registerKryoType(Rows.class);
-
+            var env = getExecutionEnvironment();
             var testSink = new TestSink<T>();
             var stream = error ? execute.apply(env).process(new ProcessFunctionWithError<>(errorAfter)) : execute.apply(env);
             stream.addSink(testSink);
@@ -166,7 +151,7 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
             return testSink.getResults(result);
         }
 
-        public <T> void runWithCustomSink(Function<StreamExecutionEnvironment, DataStreamSink<T>> execute) throws Exception {
+        private StreamExecutionEnvironment getExecutionEnvironment() {
             var env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(defaultParallelism);
             env.enableCheckpointing(10);
@@ -183,6 +168,11 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
 
             env.getConfig().registerKryoType(StreamState.class);
             env.getConfig().registerKryoType(Rows.class);
+            return env;
+        }
+
+        public <T> void runWithCustomSink(Function<StreamExecutionEnvironment, DataStreamSink<T>> execute) throws Exception {
+            var env = getExecutionEnvironment();
             execute.apply(env);
             env.execute();
         }

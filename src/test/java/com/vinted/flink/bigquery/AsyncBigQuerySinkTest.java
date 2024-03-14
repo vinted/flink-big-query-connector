@@ -76,7 +76,7 @@ public class AsyncBigQuerySinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockProtoWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any());
     }
 
     @Test
