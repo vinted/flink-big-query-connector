@@ -4,11 +4,14 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
+import com.google.common.base.Preconditions;
 import com.vinted.flink.bigquery.metric.AsyncBigQueryStreamMetrics;
 import com.vinted.flink.bigquery.metric.BigQueryStreamMetrics;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.sink.ExecutorProvider;
 import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
@@ -152,7 +155,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
                                         throw new AsyncWriterException(traceId, status.getCode(), t);
                                     }
                                 case UNKNOWN:
-                                    if (status.getCause() instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException) {
+                                    if (isMaximumRequestCallbackWaitTimeExceededException(t)) {
                                         logger.info("Trace-id {} request timed out: {}", traceId, t.getMessage());
                                         Optional.ofNullable(this.metrics.get(request.getStream()))
                                                 .ifPresent(AsyncBigQueryStreamMetrics::incrementTimeoutCount);
@@ -192,6 +195,20 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
                     }
                 });
 
+    }
+
+    private boolean isMaximumRequestCallbackWaitTimeExceededException(Throwable t) {
+        if (t == null) {
+            return false;
+        }
+
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof Exceptions.MaximumRequestCallbackWaitTimeExceededException) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private List<StreamRequest> retry(Throwable t, String traceId, StreamRequest request) {
