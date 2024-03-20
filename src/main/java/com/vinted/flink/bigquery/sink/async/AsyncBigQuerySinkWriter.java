@@ -108,8 +108,8 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
 
     @Override
     protected void submitRequestEntries(List<StreamRequest> list, Consumer<List<StreamRequest>> consumer) {
-        var traceId = UUID.randomUUID().toString();
         var requests = list.stream().map(request -> {
+            var traceId = UUID.randomUUID().toString();
             registerAppendMetrics(request);
             var writer = streamWriter(traceId, request.getStream(), request.getTable());
             logger.trace("Trace-id {}, Writing rows stream {} to steamWriter for {} writer id {}", traceId, request.getStream(), writer.getStreamName(), writer.getWriterId());
