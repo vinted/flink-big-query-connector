@@ -244,7 +244,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
     public void close() {
         logger.info("Closing BigQuery write stream");
         try {
-            flush(true);
+            flush(false);
             streamMap.values().forEach(stream -> {
                 try {
                     stream.close();
