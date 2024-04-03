@@ -235,7 +235,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
             try {
                 writer.close();
             } catch (Exception e) {
-                logger.error("Could not close writer", e);
+                logger.error("Could not close unused writer", e);
             }
         }
     }
@@ -243,19 +243,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
     @Override
     public void close() {
         logger.info("Closing BigQuery write stream");
-        try {
-            flush(false);
-            streamMap.values().forEach(stream -> {
-                try {
-                    stream.close();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
+        streamMap.values().forEach(StreamWriter::close);
     }
 
 

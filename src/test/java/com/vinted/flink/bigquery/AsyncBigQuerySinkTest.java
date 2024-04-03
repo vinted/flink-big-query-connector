@@ -65,7 +65,7 @@ public class AsyncBigQuerySinkTest {
 
     @Test
     public void shouldFailAndNotRetryWhenUnknownErrorReceived(@FlinkTest.FlinkParam FlinkTest.PipelineRunner runner, @FlinkTest.FlinkParam MockAsyncProtoClientProvider mockClientProvider) throws Exception {
-        mockClientProvider.givenStreamIsFinalized(stream);
+        mockClientProvider.givenFailingAppendWithStatus(Status.UNKNOWN);
 
         assertThatThrownBy(() -> {
             runner
@@ -76,7 +76,7 @@ public class AsyncBigQuerySinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(1)).append(any());
     }
 
     @Test
