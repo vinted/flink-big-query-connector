@@ -38,6 +38,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
 
     private final Executor appendExecutor;
 
+    protected transient Queue<StreamWriter> writersToClose = new ArrayDeque<>();
     protected transient Map<String, StreamWriter> streamMap = new ConcurrentHashMap<>();
 
     public AsyncBigQuerySinkWriter(ExecutorProvider executorProvider, AsyncClientProvider clientProvider, ElementConverter<Rows<A>, StreamRequest> elementConverter, Sink.InitContext context, AsyncSinkWriterConfiguration configuration, Collection<BufferedRequestState<StreamRequest>> bufferedRequestStates) {
@@ -94,11 +95,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
         streamMap.replaceAll((key, writer) -> {
             var newWriter = writer;
             if (writer.getWriterId().equals(writerId)) {
-                try {
-                    writer.close();
-                } catch (Exception e) {
-                    logger.trace("Trace-id {} Could not close writer for {}", traceId, streamName);
-                }
+                writersToClose.add(writer);
                 newWriter = this.clientProvider.getWriter(streamName, table);
                 registerInflightMetric(newWriter);
             }
@@ -230,21 +227,23 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
     }
 
     @Override
+    public void flush(boolean flush) throws InterruptedException {
+        super.flush(flush);
+
+        while (writersToClose.peek() != null) {
+            var writer = writersToClose.poll();
+            try {
+                writer.close();
+            } catch (Exception e) {
+                logger.error("Could not close unused writer", e);
+            }
+        }
+    }
+
+    @Override
     public void close() {
         logger.info("Closing BigQuery write stream");
-        try {
-            flush(true);
-            streamMap.values().forEach(stream -> {
-                try {
-                    stream.close();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
+        streamMap.values().forEach(StreamWriter::close);
     }
 
 
