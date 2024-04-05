@@ -21,6 +21,27 @@ var bigQuerySink = BigQueryStreamSink.<String>newBuilder()
     .build();
 ```
 
+Async connector for at least once delivery
+
+```java
+var credentials = new JsonCredentialsProvider("key");
+
+var clientProvider = new AsyncClientProvider<String>(credentials,
+    WriterSettings.newBuilder()
+                 .build()
+);
+
+var sink = AsyncBigQuerySink.builder()
+        .setRowSerializer(new NoOpRowSerializer<>())
+        .setClientProvider(clientProvider)
+        .setMaxBatchSize(30)
+        .setMaxBufferedRequests(10)
+        .setMaxBatchSizeInBytes(10000)
+        .setMaxInFlightRequests(4)
+        .setMaxRecordSizeInBytes(10000)
+        .build();
+```
+
 The sink takes in a batch of records. Batching happens outside the sink by opening a window. Batched records need to implement the BigQueryRecord interface.
 
 ```java
