@@ -128,6 +128,15 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
                             logger.error("Trace-id {}, StreamWriter failed to append {}", traceId, t.getMessage());
                             var status = Status.fromThrowable(t);
                             switch (status.getCode()) {
+                                case ABORTED: {
+                                    if (isStreamWriterClosed(t)) {
+                                        logger.info("Trace-id {} steam writer closed. Retrying: {}", traceId, t.getMessage());
+                                        return retry(t, traceId, request);
+                                    } else {
+                                        logger.error("Trace-id {} Received error {} with status {}", traceId, t.getMessage(), status.getCode());
+                                        throw new AsyncWriterException(traceId, status.getCode(), t);
+                                    }
+                                }
                                 case UNAVAILABLE: {
                                     this.recreateStreamWriter(traceId, request.getStream(), writer.getWriterId(), request.getTable());
                                     return retry(t, traceId, request);
@@ -192,6 +201,20 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
                     }
                 });
 
+    }
+
+    private boolean isStreamWriterClosed(Throwable t) {
+        if (t == null) {
+            return false;
+        }
+
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof Exceptions.StreamWriterClosedException) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean isMaximumRequestCallbackWaitTimeExceededException(Throwable t) {

@@ -64,6 +64,23 @@ public class AsyncBigQuerySinkTest {
     }
 
     @Test
+    public void shouldRetryFailingWithAbortedStatus(@FlinkTest.FlinkParam FlinkTest.PipelineRunner runner, @FlinkTest.FlinkParam MockAsyncProtoClientProvider mockClientProvider) throws Exception {
+        mockClientProvider.givenStreamWriterClosed();
+        mockClientProvider.givenRetryCount(2);
+
+        assertThatThrownBy(() -> {
+            runner
+                    .withRetryCount(0)
+                    .runWithCustomSink(withBigQuerySink(mockClientProvider, pipeline(List.of(
+                            givenRow(1)
+                    ))));
+        }).isInstanceOf(JobExecutionException.class);
+
+
+        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any());
+    }
+
+    @Test
     public void shouldFailAndNotRetryWhenUnknownErrorReceived(@FlinkTest.FlinkParam FlinkTest.PipelineRunner runner, @FlinkTest.FlinkParam MockAsyncProtoClientProvider mockClientProvider) throws Exception {
         mockClientProvider.givenFailingAppendWithStatus(Status.UNKNOWN);
 
