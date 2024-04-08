@@ -102,6 +102,14 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
                 .thenReturn(createAppendRowsResponseError(new StatusException(status)));
     }
 
+    public void givenStreamWriterClosed() throws Descriptors.DescriptorValidationException, IOException {
+        var response =  createAppendRowsResponseError(
+                new StatusException(Status.ABORTED.withCause(createStreamWriterClosedException()))
+        );
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+                .thenReturn(response);
+    }
+
     public void givenTimeoutForAppend() throws Descriptors.DescriptorValidationException, IOException {
         Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
                 .thenReturn(createTimeoutAppendRowsResponse());
@@ -144,6 +152,14 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
         Mockito.when(offsetMock.getStreamName()).thenReturn(streamName);
         Mockito.when(offsetMock.getExpectedOffset()).thenReturn(expected);
         Mockito.when(offsetMock.getActualOffset()).thenReturn(actual);
+        Mockito.when(offsetMock.getCause()).thenReturn(new RuntimeException());
+        return offsetMock;
+    }
+
+    private static Exceptions.StreamWriterClosedException createStreamWriterClosedException() {
+        var offsetMock = Mockito.mock(Exceptions.StreamWriterClosedException.class);
+        Mockito.when(offsetMock.getStatus()).thenReturn(Status.ABORTED);
+        Mockito.when(offsetMock.getStreamName()).thenReturn("stream");
         Mockito.when(offsetMock.getCause()).thenReturn(new RuntimeException());
         return offsetMock;
     }
