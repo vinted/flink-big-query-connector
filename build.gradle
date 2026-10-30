@@ -1,12 +1,14 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'maven-publish'
     id 'java-library'
-    id 'me.qoomon.git-versioning' version '4.3.0'
+    id 'me.qoomon.git-versioning' version '6.4.4'
+    id 'com.gradleup.shadow' version '9.6.1'
 }
 
-sourceCompatibility = JavaVersion.VERSION_11
-targetCompatibility = JavaVersion.VERSION_11
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
 
 repositories {
     mavenCentral()
@@ -16,21 +18,23 @@ repositories {
 group = "com.github.vinted"
 
 gitVersioning.apply {
-    tag {
-        pattern = '(?<tagVersion>\\d+\\.\\d+\\.\\d+$)'
-        versionFormat = '${tagVersion}'
+    refs {
+        branch('.+') {
+            version = '${ref}-SNAPSHOT'
+        }
+        tag('(?<tagVersion>\\d+\\.\\d+\\.\\d+$)') {
+            version = '${ref.tagVersion}'
+        }
     }
-    branch {
-        pattern = '.+'
-        versionFormat = '${branch}-SNAPSHOT'
+    rev {
+        version = '${commit}'
     }
-    preferTags = false
 }
 
 ext {
-    flinkVersion = '1.18.1'
-    bigqueryVersion = '2.36.0'
-    bigqueryStorageVersion = '3.2.0'
+    flinkVersion = '2.3.0'
+    bigqueryVersion = '2.73.0'
+    bigqueryStorageVersion = '3.35.0'
     json4sVersion = '4.0.3'
 }
 
@@ -43,14 +47,14 @@ dependencies {
     implementation "com.google.cloud:google-cloud-bigquery:$bigqueryVersion"
     implementation "com.google.cloud:google-cloud-bigquerystorage:$bigqueryStorageVersion"
 
-    testImplementation platform('org.junit:junit-bom:5.9.1')
+    testImplementation platform('org.junit:junit-bom:5.11.4')
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine"
-    testImplementation 'org.mockito:mockito-junit-jupiter:4.11.0'
-    testImplementation "org.assertj:assertj-core:3.24.0"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.14.2'
+    testImplementation "org.assertj:assertj-core:3.26.3"
     testImplementation "org.apache.flink:flink-connector-base:$flinkVersion"
-    testImplementation "org.mockito:mockito-inline:4.7.0"
     testImplementation "org.apache.flink:flink-test-utils:$flinkVersion"
-    testImplementation 'commons-io:commons-io:2.11.0'
+    testImplementation 'commons-io:commons-io:2.18.0'
 }
 
 jar {

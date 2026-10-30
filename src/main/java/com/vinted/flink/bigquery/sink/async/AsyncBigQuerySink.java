@@ -3,6 +3,8 @@ package com.vinted.flink.bigquery.sink.async;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import com.vinted.flink.bigquery.sink.ExecutorProvider;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
 import org.apache.flink.connector.base.sink.AsyncSinkBaseBuilder;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
@@ -35,7 +37,7 @@ public class AsyncBigQuerySink<A> extends AsyncSinkBase<Rows<A>, StreamRequest> 
     }
 
     @Override
-    public StatefulSinkWriter<Rows<A>, BufferedRequestState<StreamRequest>> createWriter(InitContext initContext) throws IOException {
+    public StatefulSinkWriter<Rows<A>, BufferedRequestState<StreamRequest>> createWriter(WriterInitContext initContext) throws IOException {
         return new AsyncBigQuerySinkWriter<>(executorProvider, provider, this.getElementConverter(), initContext,
                 AsyncSinkWriterConfiguration.builder()
                         .setMaxBatchSize(getMaxBatchSize())
@@ -51,7 +53,7 @@ public class AsyncBigQuerySink<A> extends AsyncSinkBase<Rows<A>, StreamRequest> 
     }
 
     @Override
-    public StatefulSinkWriter<Rows<A>, BufferedRequestState<StreamRequest>> restoreWriter(InitContext initContext, Collection<BufferedRequestState<StreamRequest>> collection) throws IOException {
+    public StatefulSinkWriter<Rows<A>, BufferedRequestState<StreamRequest>> restoreWriter(WriterInitContext initContext, Collection<BufferedRequestState<StreamRequest>> collection) throws IOException {
         return new AsyncBigQuerySinkWriter<>(executorProvider, provider, this.getElementConverter(), initContext,
                 AsyncSinkWriterConfiguration.builder()
                         .setMaxBatchSize(getMaxBatchSize())

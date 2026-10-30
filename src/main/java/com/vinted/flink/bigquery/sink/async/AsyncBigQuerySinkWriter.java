@@ -12,10 +12,11 @@ import com.vinted.flink.bigquery.sink.ExecutorProvider;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.ResultHandler;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.slf4j.Logger;
@@ -25,7 +26,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamRequest> {
@@ -41,7 +41,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
     protected transient Queue<StreamWriter> writersToClose = new ArrayDeque<>();
     protected transient Map<String, StreamWriter> streamMap = new ConcurrentHashMap<>();
 
-    public AsyncBigQuerySinkWriter(ExecutorProvider executorProvider, AsyncClientProvider clientProvider, ElementConverter<Rows<A>, StreamRequest> elementConverter, Sink.InitContext context, AsyncSinkWriterConfiguration configuration, Collection<BufferedRequestState<StreamRequest>> bufferedRequestStates) {
+    public AsyncBigQuerySinkWriter(ExecutorProvider executorProvider, AsyncClientProvider clientProvider, ElementConverter<Rows<A>, StreamRequest> elementConverter, WriterInitContext context, AsyncSinkWriterConfiguration configuration, Collection<BufferedRequestState<StreamRequest>> bufferedRequestStates) {
         super(elementConverter, context, configuration, bufferedRequestStates);
         appendExecutor = executorProvider.create();
         this.metricGroup = context.metricGroup();
@@ -104,7 +104,7 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
     }
 
     @Override
-    protected void submitRequestEntries(List<StreamRequest> list, Consumer<List<StreamRequest>> consumer) {
+    protected void submitRequestEntries(List<StreamRequest> list, ResultHandler<StreamRequest> resultHandler) {
         var traceId = UUID.randomUUID().toString();
         var requests = list.stream().map(request -> {
             registerAppendMetrics(request);
@@ -195,9 +195,11 @@ public class AsyncBigQuerySinkWriter<A> extends AsyncSinkWriter<Rows<A>, StreamR
                 .whenComplete((result, e) -> {
                     if (e != null) {
                         var status = Status.fromThrowable(e);
-                        this.getFatalExceptionCons().accept(new AsyncWriterException(traceId, status.getCode(), e));
+                        resultHandler.completeExceptionally(new AsyncWriterException(traceId, status.getCode(), e));
+                    } else if (result.isEmpty()) {
+                        resultHandler.complete();
                     } else {
-                        consumer.accept(result);
+                        resultHandler.retryForEntries(result);
                     }
                 });
 

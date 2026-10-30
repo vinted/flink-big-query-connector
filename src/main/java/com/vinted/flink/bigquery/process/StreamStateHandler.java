@@ -8,8 +8,8 @@ import com.vinted.flink.bigquery.model.Rows;
 import io.grpc.Status;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -38,8 +38,8 @@ public class StreamStateHandler<A extends BigQueryRecord, K, W extends Window> e
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.streamState = this.getRuntimeContext().getState(new ValueStateDescriptor<>(
                 "streamState",
                 TypeInformation.of(StreamState.class)
