@@ -5,6 +5,7 @@ import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.JsonRowValueSerializer;
 import com.vinted.flink.bigquery.serializer.ProtoValueSerializer;
@@ -28,7 +29,7 @@ public class BigQueryDefaultSink<A> implements Sink<Rows<A>> {
     }
 
     @Override
-    public SinkWriter<Rows<A>> createWriter(InitContext context) throws IOException {
+    public SinkWriter<Rows<A>> createWriter(WriterInitContext context) throws IOException {
         return new BigQueryDefaultSinkWriter<A>(context, rowValueSerializer, clientProvider, executorProvider);
     }
 

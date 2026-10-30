@@ -1,9 +1,6 @@
 package com.vinted.flink.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.JsonStreamWriter;
-import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.google.common.util.concurrent.MoreExecutors;
-import org.apache.flink.api.connector.sink2.Sink;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.NoOpRowSerializer;
@@ -11,6 +8,7 @@ import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import com.vinted.flink.bigquery.sink.ExecutorProvider;
 import com.vinted.flink.bigquery.sink.buffered.BigQueryBufferedSink;
 import com.vinted.flink.bigquery.sink.defaultStream.BigQueryDefaultSink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 
 public class BigQueryStreamSink<A> {

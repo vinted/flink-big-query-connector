@@ -11,6 +11,7 @@ import com.vinted.flink.bigquery.model.config.WriterSettings;
 import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import org.json.JSONArray;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -42,7 +43,7 @@ public class MockJsonClientProvider<A> implements ClientProvider<A>, Serializabl
         Mockito.when(MockJsonClientProvider.mockClient.getWriteStream(streamName))
                 .thenThrow(ex);
 
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(exception));
     }
 
@@ -68,23 +69,23 @@ public class MockJsonClientProvider<A> implements ClientProvider<A>, Serializabl
     }
 
     public void givenSuccessfulAppend() throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponse());
 
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class)))
                 .thenReturn(createAppendRowsResponse());
     }
 
     public void givenFailingAppendWithStatus(Status status) throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(new StatusException(status)));
 
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class)))
                 .thenReturn(createAppendRowsResponseError(new StatusException(status)));
     }
 
     public void givenTimeoutForAppend() throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class), Mockito.anyLong()))
                 .thenReturn(createTimeoutAppendRowsResponse());
     }
 
@@ -92,7 +93,7 @@ public class MockJsonClientProvider<A> implements ClientProvider<A>, Serializabl
     public void givenAppendingExistingOffset(int expected, int actual, String streamName) throws Descriptors.DescriptorValidationException, IOException {
         var offsetMock = createOffsetAlreadyExistsException(expected, actual, streamName);
 
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(offsetMock))
                 .thenReturn(createAppendRowsResponse());
     }
@@ -101,11 +102,11 @@ public class MockJsonClientProvider<A> implements ClientProvider<A>, Serializabl
         var ex = new StatusException(Status.INVALID_ARGUMENT
                 .augmentDescription("MessageSize is too large. Max allow: 10000000 Actual: 12040940 status: INVALID_ARGUMENT stream: project"));
 
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(ex))
                 .thenReturn(createAppendRowsResponse());
 
-        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any()))
+        Mockito.when(MockJsonClientProvider.writer.append(Mockito.any(JSONArray.class)))
                 .thenReturn(createAppendRowsResponseError(ex))
                 .thenReturn(createAppendRowsResponse());
     }

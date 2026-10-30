@@ -1,18 +1,17 @@
 package com.vinted.flink.bigquery.util;
 
 import com.vinted.flink.bigquery.model.Rows;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import com.vinted.flink.bigquery.process.StreamState;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.junit.jupiter.api.extension.*;
@@ -25,6 +24,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -45,9 +45,9 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
     private Configuration config = new Configuration();
 
     {
-        config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tempDir.toUri().toString());
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, tempDir.toUri().toString());
-        config.setBoolean(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tempDir.toUri().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, tempDir.toUri().toString());
+        config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
 
     }
 
@@ -146,28 +146,29 @@ public class FlinkTest implements AfterAllCallback, AfterEachCallback, BeforeEac
             var env = getExecutionEnvironment();
             var testSink = new TestSink<T>();
             var stream = error ? execute.apply(env).process(new ProcessFunctionWithError<>(errorAfter)) : execute.apply(env);
-            stream.addSink(testSink);
+            stream.sinkTo(testSink);
             var result = env.execute();
             return testSink.getResults(result);
         }
 
         private StreamExecutionEnvironment getExecutionEnvironment() {
-            var env = StreamExecutionEnvironment.getExecutionEnvironment();
+            var restartConfig = new Configuration();
+            restartConfig.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+            restartConfig.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, retryCount);
+            restartConfig.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(5));
+
+            var env = StreamExecutionEnvironment.getExecutionEnvironment(restartConfig);
             env.setParallelism(defaultParallelism);
             env.enableCheckpointing(10);
-            env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+            env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
             env.getCheckpointConfig().setMinPauseBetweenCheckpoints(10);
             env.getCheckpointConfig().enableUnalignedCheckpoints();
-            env.getCheckpointConfig().setCheckpointStorage(tempDir.toUri());
-            env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+            env.getCheckpointConfig().setExternalizedCheckpointRetention(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
             env.configure(config);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-                    retryCount, // number of restart attempts
-                    Time.of(5, TimeUnit.MILLISECONDS) // delay
-            ));
 
-            env.getConfig().registerKryoType(StreamState.class);
-            env.getConfig().registerKryoType(Rows.class);
+            var serializerConfig = (SerializerConfigImpl) env.getConfig().getSerializerConfig();
+            serializerConfig.registerKryoType(StreamState.class);
+            serializerConfig.registerKryoType(Rows.class);
             return env;
         }
 

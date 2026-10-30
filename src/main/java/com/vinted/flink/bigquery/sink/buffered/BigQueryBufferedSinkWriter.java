@@ -8,8 +8,8 @@ import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import com.vinted.flink.bigquery.client.ClientProvider;
 import com.vinted.flink.bigquery.metric.BigQueryStreamMetrics;
 import com.vinted.flink.bigquery.model.Rows;
@@ -29,12 +29,12 @@ import java.util.stream.Collectors;
 
 public class BigQueryBufferedSinkWriter<A>
         extends BigQuerySinkWriter<A>
-        implements TwoPhaseCommittingSink.PrecommittingSinkWriter<Rows<A>, BigQueryCommittable> {
+        implements CommittingSinkWriter<Rows<A>, BigQueryCommittable> {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryBufferedSinkWriter.class);
     private Map<String, Long> streamOffsets = new ConcurrentHashMap<>();
 
     public BigQueryBufferedSinkWriter(
-            Sink.InitContext sinkInitContext,
+            WriterInitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
             ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {

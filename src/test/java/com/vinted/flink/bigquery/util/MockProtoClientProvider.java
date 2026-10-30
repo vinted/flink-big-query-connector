@@ -42,7 +42,7 @@ public class MockProtoClientProvider implements ClientProvider<StreamWriter>, Se
         Mockito.when(MockProtoClientProvider.mockClient.getWriteStream(streamName))
                 .thenThrow(ex);
 
-        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(exception));
     }
 
@@ -72,17 +72,17 @@ public class MockProtoClientProvider implements ClientProvider<StreamWriter>, Se
     }
 
     public void givenSuccessfulAppend() throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponse());
     }
 
     public void givenFailingAppendWithStatus(Status status) throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(new StatusException(status)));
     }
 
     public void givenTimeoutForAppend() throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createTimeoutAppendRowsResponse());
     }
 
@@ -90,7 +90,7 @@ public class MockProtoClientProvider implements ClientProvider<StreamWriter>, Se
     public void givenAppendingExistingOffset(int expected, int actual, String streamName) throws Descriptors.DescriptorValidationException, IOException {
         var offsetMock = createOffsetAlreadyExistsException(expected, actual, streamName);
 
-        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(offsetMock))
                 .thenReturn(createAppendRowsResponse());
     }
@@ -99,7 +99,7 @@ public class MockProtoClientProvider implements ClientProvider<StreamWriter>, Se
         var ex = new StatusException(Status.INVALID_ARGUMENT
                 .augmentDescription("MessageSize is too large. Max allow: 10000000 Actual: 12040940 status: INVALID_ARGUMENT stream: project"));
 
-        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(ex))
                 .thenReturn(createAppendRowsResponse());
     }

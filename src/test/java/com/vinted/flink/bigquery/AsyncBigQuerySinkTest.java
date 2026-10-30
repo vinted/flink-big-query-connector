@@ -2,6 +2,7 @@ package com.vinted.flink.bigquery;
 
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import com.vinted.flink.bigquery.sink.async.AsyncBigQuerySink;
@@ -40,7 +41,7 @@ public class AsyncBigQuerySinkTest {
                 givenRow(1)
         ))));
 
-        verify(mockClientProvider.getMockProtoWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(1)).append(any(ProtoRows.class));
     }
 
     @Test
@@ -59,7 +60,7 @@ public class AsyncBigQuerySinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any(ProtoRows.class));
         assertThat(mockClientProvider.getNumOfCreatedWriter()).isEqualTo(3);
     }
 
@@ -77,7 +78,7 @@ public class AsyncBigQuerySinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any(ProtoRows.class));
     }
 
     @Test
@@ -93,7 +94,7 @@ public class AsyncBigQuerySinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockProtoWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(1)).append(any(ProtoRows.class));
     }
 
     @Test
@@ -109,7 +110,7 @@ public class AsyncBigQuerySinkTest {
                     ))));
         }).isInstanceOf(JobExecutionException.class);
 
-        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(2)).append(any(ProtoRows.class));
         assertThat(mockClientProvider.getNumOfCreatedWriter()).isEqualTo(3);
     }
 
@@ -124,7 +125,7 @@ public class AsyncBigQuerySinkTest {
                 ))));
 
 
-        verify(mockClientProvider.getMockProtoWriter(), times(3)).append(any());
+        verify(mockClientProvider.getMockProtoWriter(), times(3)).append(any(ProtoRows.class));
     }
 
     private Rows<String> givenRow(int count) {

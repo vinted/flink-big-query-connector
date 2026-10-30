@@ -8,6 +8,7 @@ import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import com.vinted.flink.bigquery.util.FlinkTest;
 import com.vinted.flink.bigquery.util.MockJsonClientProvider;
 import io.grpc.Status;
+import org.json.JSONArray;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -40,7 +41,7 @@ public class BigQueryDefaultSinkTest {
                 givenRow(1)
         ))));
 
-        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(JSONArray.class));
     }
 
     @Test
@@ -60,7 +61,7 @@ public class BigQueryDefaultSinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(2)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(2)).append(any(JSONArray.class));
         assertThat(mockClientProvider.getNumOfCreatedWriter()).isEqualTo(3);
     }
 
@@ -77,7 +78,7 @@ public class BigQueryDefaultSinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(JSONArray.class));
     }
 
     @Test
@@ -94,7 +95,7 @@ public class BigQueryDefaultSinkTest {
                     ))));
         }).isInstanceOf(JobExecutionException.class);
 
-        verify(mockClientProvider.getMockJsonWriter(), times(2)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(2)).append(any(JSONArray.class));
         assertThat(mockClientProvider.getNumOfCreatedWriter()).isEqualTo(3);
     }
 
@@ -110,7 +111,7 @@ public class BigQueryDefaultSinkTest {
                 ))));
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(3)).append(any());
+        verify(mockClientProvider.getMockJsonWriter(), times(3)).append(any(JSONArray.class));
     }
 
     private Rows<String> givenRow(int count) {

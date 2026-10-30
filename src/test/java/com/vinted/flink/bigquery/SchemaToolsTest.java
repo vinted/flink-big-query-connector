@@ -43,7 +43,7 @@ public class SchemaToolsTest {
 
         lenient().doReturn(aBqClient).when(aBqOptions).getService();
         lenient().doReturn(aBqRpcClient).when(aBqOptions).getRpc();
-        lenient().doReturn(aTable).when(aBqClient).getTable(any(TableId.class), any());
+        lenient().doReturn(aTable).when(aBqClient).getTable(any(TableId.class));
         lenient().doReturn(aTableDefinition).when(aTable).getDefinition();
     }
 

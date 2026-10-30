@@ -2,6 +2,7 @@ package com.vinted.flink.bigquery;
 
 import com.google.cloud.bigquery.TableId;
 import io.grpc.Status;
+import org.json.JSONArray;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.JsonRowValueSerializer;
 import com.vinted.flink.bigquery.util.FlinkTest;
@@ -38,7 +39,7 @@ public class BigQueryBufferedSinkTest {
                 givenRows(1)
         ))));
 
-        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(), anyLong());
+        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(JSONArray.class), anyLong());
     }
 
     @Test
@@ -52,7 +53,7 @@ public class BigQueryBufferedSinkTest {
                 ))));
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(3)).append(any(), anyLong());
+        verify(mockClientProvider.getMockJsonWriter(), times(3)).append(any(JSONArray.class), anyLong());
     }
 
     @Test
@@ -68,7 +69,7 @@ public class BigQueryBufferedSinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(5)).append(any(), anyLong());
+        verify(mockClientProvider.getMockJsonWriter(), times(5)).append(any(JSONArray.class), anyLong());
     }
 
     @Test
@@ -84,7 +85,7 @@ public class BigQueryBufferedSinkTest {
         }).isInstanceOf(JobExecutionException.class);
 
 
-        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(), anyLong());
+        verify(mockClientProvider.getMockJsonWriter(), times(1)).append(any(JSONArray.class), anyLong());
     }
 
     private Rows<String> givenRows(int count) {

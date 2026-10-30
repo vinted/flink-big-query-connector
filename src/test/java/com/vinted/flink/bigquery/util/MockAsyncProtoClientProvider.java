@@ -63,7 +63,7 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
         Mockito.when(MockAsyncProtoClientProvider.mockClient.getWriteStream(streamName))
                 .thenThrow(ex);
 
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(), Mockito.anyLong()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class), Mockito.anyLong()))
                 .thenReturn(createAppendRowsResponseError(exception));
     }
 
@@ -93,12 +93,12 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
     }
 
     public void givenSuccessfulAppend() throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class)))
                 .thenReturn(createAppendRowsResponse());
     }
 
     public void givenFailingAppendWithStatus(Status status) throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class)))
                 .thenReturn(createAppendRowsResponseError(new StatusException(status)));
     }
 
@@ -106,12 +106,12 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
         var response =  createAppendRowsResponseError(
                 new StatusException(Status.ABORTED.withCause(createStreamWriterClosedException()))
         );
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class)))
                 .thenReturn(response);
     }
 
     public void givenTimeoutForAppend() throws Descriptors.DescriptorValidationException, IOException {
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class)))
                 .thenReturn(createTimeoutAppendRowsResponse());
     }
 
@@ -119,7 +119,7 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
     public void givenAppendingExistingOffset(int expected, int actual, String streamName) throws Descriptors.DescriptorValidationException, IOException {
         var offsetMock = createOffsetAlreadyExistsException(expected, actual, streamName);
 
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class)))
                 .thenReturn(createAppendRowsResponseError(offsetMock))
                 .thenReturn(createAppendRowsResponse());
     }
@@ -128,7 +128,7 @@ public class MockAsyncProtoClientProvider extends AsyncClientProvider {
         var ex = new StatusException(Status.INVALID_ARGUMENT
                 .augmentDescription("MessageSize is too large. Max allow: 10000000 Actual: 12040940 status: INVALID_ARGUMENT stream: project"));
 
-        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any()))
+        Mockito.when(MockAsyncProtoClientProvider.protoWriter.append(Mockito.any(ProtoRows.class)))
                 .thenReturn(createAppendRowsResponseError(ex))
                 .thenReturn(createAppendRowsResponse());
     }

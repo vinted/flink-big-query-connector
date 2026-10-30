@@ -13,7 +13,7 @@ import com.vinted.flink.bigquery.sink.AppendException;
 import com.vinted.flink.bigquery.sink.BigQuerySinkWriter;
 import com.vinted.flink.bigquery.sink.ExecutorProvider;
 import io.grpc.Status;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public class BigQueryDefaultSinkWriter<A>
     private volatile AppendException appendAsyncException = null;
 
     public BigQueryDefaultSinkWriter(
-            Sink.InitContext sinkInitContext,
+            WriterInitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
             ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {
@@ -120,10 +120,10 @@ public class BigQueryDefaultSinkWriter<A>
 
     @Override
     public void flush(boolean endOfInput) {
-        logger.debug("Flushing BigQuery writer {} data. Inflight request count {}", this.sinkInitContext.getSubtaskId(), inflightRequestCount.getRegisteredParties());
+        logger.debug("Flushing BigQuery writer {} data. Inflight request count {}", this.sinkInitContext.getTaskInfo().getIndexOfThisSubtask(), inflightRequestCount.getRegisteredParties());
         checkAsyncException();
         inflightRequestCount.arriveAndAwaitAdvance();
-        logger.debug("BigQuery writer {} data flushed. Inflight request count {}", this.sinkInitContext.getSubtaskId(), inflightRequestCount.getRegisteredParties());
+        logger.debug("BigQuery writer {} data flushed. Inflight request count {}", this.sinkInitContext.getTaskInfo().getIndexOfThisSubtask(), inflightRequestCount.getRegisteredParties());
     }
 
     static class AppendCallBack<A> implements ApiFutureCallback<AppendRowsResponse> {
