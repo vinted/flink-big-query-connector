@@ -12,8 +12,8 @@ import com.vinted.flink.bigquery.metric.BigQueryStreamMetrics;
 import com.vinted.flink.bigquery.model.Rows;
 import com.vinted.flink.bigquery.serializer.RowValueSerializer;
 import io.grpc.Status;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -37,7 +37,7 @@ public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
 
     protected ClientProvider<A> clientProvider;
     protected transient Map<String, BigQueryStreamWriter<A>> streamMap = new ConcurrentHashMap<>();
-    protected Sink.InitContext sinkInitContext;
+    protected WriterInitContext sinkInitContext;
     protected RowValueSerializer<A> rowSerializer;
 
     protected BigQueryWriteClient client;
@@ -49,7 +49,7 @@ public abstract class BigQuerySinkWriter<A> implements SinkWriter<Rows<A>> {
     protected abstract AppendResult append(String traceId, Rows<A> rows);
 
     public BigQuerySinkWriter(
-            Sink.InitContext sinkInitContext,
+            WriterInitContext sinkInitContext,
             RowValueSerializer<A> rowSerializer,
             ClientProvider<A> clientProvider,
             ExecutorProvider executorProvider) {
